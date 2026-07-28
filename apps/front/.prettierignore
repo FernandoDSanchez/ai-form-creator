@@ -1,0 +1,6 @@
+dist
+coverage
+node_modules
+public/mockServiceWorker.js
+ragflow
+package-lock.json

@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ragflow-service-conf
+data:
+  # Mounted at /ragflow/conf/service_conf.yaml.template. The container
+  # entrypoint expands every ${VAR} against the process environment and writes
+  # the result to /ragflow/conf/service_conf.yaml before starting.
+  #
+  # Expansion happens through `eval echo`, so passwords must not contain
+  # `$`, a backtick or a backslash — they would be re-evaluated by the shell.
+  #
+  # This is a trimmed copy of the upstream v0.26.4 template: only the sections
+  # RAGFlow needs with DOC_ENGINE=elasticsearch are kept. Two deviations from
+  # upstream, both so that endpoints stay fully patchable from an overlay:
+  #   - minio.host takes MINIO_PORT instead of a hardcoded :9000
+  #   - es.hosts takes ES_PORT instead of a hardcoded :9200
+  service_conf.yaml.template: |
+    ragflow:
+      host: ${RAGFLOW_HOST:-0.0.0.0}
+      http_port: 9380
+    admin:
+      host: ${RAGFLOW_HOST:-0.0.0.0}
+      http_port: 9381
+    mysql:
+      name: '${MYSQL_DBNAME:-rag_flow}'
+      user: '${MYSQL_USER:-root}'
+      password: '${MYSQL_PASSWORD}'
+      host: '${MYSQL_HOST:-ragflow-mysql}'
+      port: ${MYSQL_PORT:-3306}
+      max_connections: 900
+      stale_timeout: 300
+      max_allowed_packet: ${MYSQL_MAX_PACKET:-1073741824}
+    minio:
+      user: '${MINIO_USER}'
+      password: '${MINIO_PASSWORD}'
+      host: '${MINIO_HOST}:${MINIO_PORT}'
+      bucket: '${MINIO_BUCKET:-}'
+      prefix_path: '${MINIO_PREFIX_PATH:-}'
+    es:
+      hosts: 'http://${ES_HOST:-ragflow-elasticsearch}:${ES_PORT:-9200}'
+      username: '${ES_USER:-elastic}'
+      password: '${ELASTIC_PASSWORD}'
+    redis:
+      db: 1
+      username: '${REDIS_USERNAME:-}'
+      password: '${REDIS_PASSWORD}'
+      host: '${REDIS_HOST:-ragflow-redis}:${REDIS_PORT:-6379}'
+    # To pre-register a default chat/embedding model instead of configuring it
+    # in the UI, add a user_default_llm block here. Pointing it at the LiteLLM
+    # component keeps every model credential in one place:
+    #
+    # user_default_llm:
+    #   factory: 'OpenAI-API-Compatible'
+    #   api_key: 'sk-litellm-master-key'
+    #   base_url: 'http://litellm.ai-tools.svc.cluster.local:4000/v1'
+    #   default_models:
+    #     chat_model:
+    #       name: 'gpt-4o-mini'
+    #     embedding_model:
+    #       name: 'text-embedding-3-small'

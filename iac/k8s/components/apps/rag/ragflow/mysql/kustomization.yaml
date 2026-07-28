@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Wraps the generic mysql component with a ragflow- prefix
+# Produces: ragflow-mysql (StatefulSet, Service)
+# Tenant must provide ragflow-secret (via SealedSecret, secretGenerator, etc.)
+resources:
+  - ../../../databases/mysql/
+
+namePrefix: ragflow-
+
+patches:
+  # namePrefix won't propagate to secretRef when the Secret is not in the build,
+  # so we point it at the single shared ragflow-secret explicitly
+  - target:
+      kind: StatefulSet
+      name: mysql
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/envFrom/0/secretRef/name
+        value: ragflow-secret
+  # namePrefix renames resources but leaves the `app` label alone, so a generic
+  # mysql deployed in the same namespace would end up sharing this Service.
+  # Rename the label on both sides to keep the two instances apart.
+  - target:
+      kind: StatefulSet
+      name: mysql
+    patch: |-
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: ragflow-mysql
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: ragflow-mysql
+  - target:
+      kind: Service
+      name: mysql
+    patch: |-
+      - op: replace
+        path: /spec/selector/app
+        value: ragflow-mysql

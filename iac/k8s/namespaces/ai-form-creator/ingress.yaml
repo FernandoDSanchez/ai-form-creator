@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app-ingress
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: web, websecure
+spec:
+  ingressClassName: traefik
+  rules:
+    # nip.io resuelve *.192.168.18.23.nip.io → 192.168.18.23 (la IP del nodo),
+    # así el Ingress funciona en local sin tocar /etc/hosts ni tener DNS.
+    # En un cluster real, reemplazá por el dominio de verdad.
+    - host: "app.192.168.18.23.nip.io"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: front
+                port:
+                  number: 80
+    - host: "api.192.168.18.23.nip.io"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: back
+                port:
+                  number: 80

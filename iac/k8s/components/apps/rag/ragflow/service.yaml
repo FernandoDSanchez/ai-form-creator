@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ragflow
+spec:
+  selector:
+    app: ragflow
+  ports:
+    # nginx serves the web UI and proxies /v1 to the API
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    # the HTTP API, for in-cluster callers that want to skip nginx
+    - name: api
+      protocol: TCP
+      port: 9380
+      targetPort: 9380

@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  serviceName: "elasticsearch"
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+        - name: elasticsearch
+          image: elasticsearch:8.11.3
+          ports:
+            - name: http
+              containerPort: 9200
+            - name: transport
+              containerPort: 9300
+          env:
+            # single-node also disables the bootstrap checks, so no privileged
+            # initContainer is needed to raise vm.max_map_count
+            - name: discovery.type
+              value: single-node
+            - name: node.name
+              value: elasticsearch
+            - name: bootstrap.memory_lock
+              value: "false"
+            - name: xpack.security.enabled
+              value: "true"
+            - name: xpack.security.http.ssl.enabled
+              value: "false"
+            - name: xpack.security.transport.ssl.enabled
+              value: "false"
+            - name: cluster.routing.allocation.disk.watermark.low
+              value: 5gb
+            - name: cluster.routing.allocation.disk.watermark.high
+              value: 3gb
+            - name: cluster.routing.allocation.disk.watermark.flood_stage
+              value: 2gb
+            - name: ES_JAVA_OPTS
+              value: "-Xms1g -Xmx1g"
+            - name: ELASTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: elasticsearch-secret
+                  key: ELASTIC_PASSWORD
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "4Gi"
+              cpu: "2"
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -sf -u "elastic:$ELASTIC_PASSWORD" http://localhost:9200/_cluster/health >/dev/null
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - curl -sf -u "elastic:$ELASTIC_PASSWORD" http://localhost:9200/_cluster/health >/dev/null
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 9200
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          volumeMounts:
+            - name: elasticsearch-storage
+              mountPath: /usr/share/elasticsearch/data
+      restartPolicy: Always
+  volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-storage
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 20Gi

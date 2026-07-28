@@ -1,0 +1,13 @@
+/** Estados posibles (Variant Mapping: nunca strings sueltos). */
+export const {{camelCase entity}}Statuses = {
+  active: 'active',
+  inactive: 'inactive',
+} as const;
+
+export type {{pascalCase entity}}Status =
+  (typeof {{camelCase entity}}Statuses)[keyof typeof {{camelCase entity}}Statuses];
+
+export type {{pascalCase entity}} = {
+  id: string;
+  status: {{pascalCase entity}}Status;
+};

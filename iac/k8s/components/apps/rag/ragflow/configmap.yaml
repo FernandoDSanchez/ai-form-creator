@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ragflow-config
+data:
+  # --- Dependency endpoints -------------------------------------------------
+  # Defaults match the namePrefix wrappers under ./mysql, ./redis and
+  # ./elasticsearch. Point them somewhere else to share an existing instance.
+  MYSQL_HOST: ragflow-mysql
+  MYSQL_PORT: "3306"
+  MYSQL_USER: root
+  MYSQL_DBNAME: rag_flow
+  MYSQL_MAX_PACKET: "1073741824"
+
+  ES_HOST: ragflow-elasticsearch
+  ES_PORT: "9200"
+  ES_USER: elastic
+
+  REDIS_HOST: ragflow-redis
+  REDIS_PORT: "6379"
+
+  # MinIO is NOT bundled — RAGFlow uses the operator-managed Tenant.
+  # Confirm the Service name and port for your Tenant before deploying:
+  #   kubectl get svc -n minio-operator
+  # The operator publishes the Tenant on port 80 when requestAutoCert is false
+  # and on 443 when it is true.
+  MINIO_HOST: minio.minio-operator.svc.cluster.local
+  MINIO_PORT: "80"
+
+  # --- Runtime --------------------------------------------------------------
+  RAGFLOW_HOST: 0.0.0.0
+  DOC_ENGINE: elasticsearch
+  API_PROXY_SCHEME: python
+  REGISTER_ENABLED: "1"
+  DOC_BULK_SIZE: "4"
+  EMBEDDING_BATCH_SIZE: "16"
+  THREAD_POOL_MAX_WORKERS: "128"
+  DOTNET_SYSTEM_GLOBALIZATION_INVARIANT: "1"
+  TZ: UTC

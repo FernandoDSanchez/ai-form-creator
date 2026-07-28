@@ -1,0 +1,186 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ai-form-creator
+
+# Todo ai-form-creator en un namespace propio: front + back + su Postgres,
+# Temporal, LiteLLM y el stack de RAGFlow.
+#
+# POR QUÉ UN SOLO NAMESPACE: este cluster está compartido con otro proyecto que
+# ya instaló la base de forjate (los namespaces cert-manager, security, traefik,
+# ai-tools y minio-operator son suyos). Un namespace propio nos despega de esa
+# base: no compartimos `ai-tools` con nadie y el borrado es de un tirón —
+#   kubectl delete ns ai-form-creator
+#
+# LO QUE CUESTA: los dos Postgres (el nuestro y el de temporal-stack) salen del
+# mismo componente genérico y colisionan en el mismo namespace. Por eso el
+# nuestro va envuelto en ./app-postgres con namePrefix. Ver ese archivo.
+#
+# Cableado interno — al estar todos acá, alcanzan los nombres cortos:
+#   app-postgres:5432     Postgres de la app
+#   temporal-server:7233  frontend de Temporal
+#   litellm:4000          proxy de modelos (sin Ingress, sólo interno)
+#   ragflow / ragflow:9380  UI y API de RAGFlow
+#
+# MinIO NO está acá: RAGFlow usa el Tenant que instancia la raíz, en el
+# namespace minio-operator. Confirmá el nombre del Service antes de desplegar:
+#   kubectl get svc -n minio-operator
+# y si no es `minio` en el puerto 80, parcheá MINIO_HOST/MINIO_PORT.
+
+resources:
+  - namespace.yaml
+
+  # --- app propia ---
+  - ./app-postgres
+  - front-deployment.yaml
+  - front-service.yaml
+  - back-deployment.yaml
+  - back-service.yaml
+  - ingress.yaml
+
+  # --- LiteLLM + su Postgres (remoto) ---
+  # Su Postgres es opt-in. Lo incluimos porque queremos virtual keys y spend
+  # tracking; si sólo vas a proxear modelos desde el config file, borrá la
+  # segunda línea y DATABASE_URL de litellm.env.
+  - https://github.com/AItizate/forjate.git//k8s/components/apps/ai-models/litellm?ref=7ac17e6a07446969b2b12004f694e09aa134642e
+  - https://github.com/AItizate/forjate.git//k8s/components/apps/ai-models/litellm/postgres?ref=7ac17e6a07446969b2b12004f694e09aa134642e
+
+  # --- Temporal server + UI + su Postgres (remoto) ---
+  # La imagen auto-setup crea las bases `temporal` y `temporal_visibility` sola
+  # en el primer arranque, con las credenciales de postgres-secret.
+  - https://github.com/AItizate/forjate.git//k8s/components/bundles/temporal-stack?ref=7ac17e6a07446969b2b12004f694e09aa134642e
+
+  # --- RAGFlow + MySQL/Redis/Elasticsearch (vendorizado) ---
+  # Vive en ../../components porque todavía no existe en la factory. Cuando
+  # entre upstream, esto se reemplaza por una referencia remota y se borra el
+  # directorio local:
+  #   - https://github.com/AItizate/forjate.git//k8s/components/bundles/ragflow-stack?ref=<nuevo>
+  # Por eso NO edites los componentes vendorizados: los ajustes van como patch
+  # acá abajo, así la migración es borrar + cambiar la ref.
+  - ../../components/apps/rag/ragflow
+  - ../../components/apps/rag/ragflow/mysql
+  - ../../components/apps/rag/ragflow/redis
+  - ../../components/apps/rag/ragflow/elasticsearch
+
+configMapGenerator:
+  - name: back-config
+    literals:
+      - NODE_ENV=production
+      - PORT=8080
+      - TEMPORAL_ADDRESS=temporal-server:7233
+      - LITELLM_BASE_URL=http://litellm:4000
+      - RAGFLOW_BASE_URL=http://ragflow
+      - RAGFLOW_API_URL=http://ragflow:9380
+      # HUMANO: id del dataset (knowledge base) de RAGFlow donde aterrizan los
+      # documentos regulatorios. No es secreto (es un id), por eso va en el
+      # ConfigMap y no en back.env. Se obtiene con:
+      #   curl -H "Authorization: Bearer $RAGFLOW_API_KEY" \
+      #        http://ragflow:9380/api/v1/datasets
+      #
+      # Dataset `Aduana`.
+      - RAGFLOW_DATASET_ID=910c513689ef11f185a34559384ef010
+    options:
+      disableNameSuffixHash: true
+  - name: litellm-config-file
+    files:
+      - config.yaml=configs/litellm-config.yaml
+    behavior: replace
+
+secretGenerator:
+  # El nombre `postgres-secret` lo fija el bundle temporal-stack: es el que
+  # referencian el StatefulSet de su Postgres y el server de Temporal.
+  - name: postgres-secret
+    envs:
+      - secrets/temporal-postgres.env
+    options:
+      disableNameSuffixHash: true
+  - name: app-postgres-secret
+    envs:
+      - secrets/app-postgres.env
+    options:
+      disableNameSuffixHash: true
+  - name: back-secret
+    envs:
+      - secrets/back.env
+    options:
+      disableNameSuffixHash: true
+  - name: litellm-secret
+    envs:
+      - secrets/litellm.env
+    options:
+      disableNameSuffixHash: true
+  - name: litellm-postgres-secret
+    envs:
+      - secrets/litellm-postgres.env
+    options:
+      disableNameSuffixHash: true
+  - name: ragflow-secret
+    envs:
+      - secrets/ragflow.env
+    options:
+      disableNameSuffixHash: true
+
+patches:
+  # El componente de LiteLLM ya trae su Postgres renombrado a litellm-postgres,
+  # pero —igual que todos los wrappers de namePrefix— deja la label `app:
+  # postgres` sin tocar. En namespaces separados daba igual; acá conviven tres
+  # Postgres y los Services se robarían los pods entre sí: el Service
+  # `postgres` de Temporal matchearía también al pod de LiteLLM. Se le renombra
+  # la label de los dos lados.
+  - target:
+      kind: StatefulSet
+      name: litellm-postgres
+    patch: |-
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: litellm-postgres
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: litellm-postgres
+  - target:
+      kind: Service
+      name: litellm-postgres
+    patch: |-
+      - op: replace
+        path: /spec/selector/app
+        value: litellm-postgres
+
+  - path: patches/ragflow-ingress-patch.yaml
+    target:
+      kind: Ingress
+      name: ragflow-ingress
+  # RAGFlow → LiteLLM: añade user_default_llm a la plantilla de service_conf.
+  - path: patches/ragflow-litellm-patch.yaml
+    target:
+      kind: ConfigMap
+      name: ragflow-service-conf
+  - path: patches/temporal-ui-ingress-patch.yaml
+    target:
+      kind: Ingress
+      name: temporal-ui-ingress
+
+# Las dos imágenes se construyen local y se importan a mano al containerd de
+# k3s: no hay registry del que bajarlas. Por eso NO se les reescribe el nombre
+# —el del manifiesto tiene que ser idéntico al del import— y los Deployments
+# usan imagePullPolicy: IfNotPresent; sin eso el kubelet intentaría bajarlas de
+# docker.io y fallaría.
+#
+#   docker build -t ai-form-creator/back:dev apps/back
+#   docker save ai-form-creator/back:dev | sudo k3s ctr images import -
+#
+# El front además necesita las VITE_APP_* como --build-arg: Vite las hornea en
+# el bundle, no se leen en runtime. El comando completo está en iac/README.md.
+#
+# OJO con las mayúsculas si algún día esto va a un registry: el placeholder
+# original era `ghcr.io/OWNER/...`, y `OWNER` en mayúscula es una referencia
+# OCI inválida — el pod queda en InvalidImageName sin ni siquiera intentar el
+# pull. Todo en minúscula.
+#
+# CI reemplaza el tag:
+#   kustomize edit set image ai-form-creator/back=$REGISTRY/back:$GIT_SHA
+images:
+  - name: ai-form-creator/front
+    newTag: dev
+
+  - name: ai-form-creator/back
+    newTag: dev

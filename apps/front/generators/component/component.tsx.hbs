@@ -1,0 +1,27 @@
+import { cva, type VariantProps } from 'class-variance-authority';
+
+import { cn } from '@/utils/cn';
+
+const {{camelCase name}}Variants = cva('', {
+  variants: {
+    variant: {
+      default: '',
+    },
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+});
+
+export type {{pascalCase name}}Props = VariantProps<
+  typeof {{camelCase name}}Variants
+> & {
+  className?: string;
+};
+
+export const {{pascalCase name}} = ({
+  variant,
+  className,
+}: {{pascalCase name}}Props) => (
+  <div className={cn({{camelCase name}}Variants({ variant }), className)} />
+);

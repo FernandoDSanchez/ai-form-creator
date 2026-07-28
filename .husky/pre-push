@@ -1,0 +1,2 @@
+(cd apps/front && npm run check-types && npm run test)
+(cd apps/back && npm run check-types && npm run test)

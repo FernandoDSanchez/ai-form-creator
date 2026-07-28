@@ -1,0 +1,60 @@
+# deps
+node_modules
+
+# build
+dist
+dist-ssr
+*.local
+coverage
+build
+*.tsbuildinfo
+.eslintcache
+.turbo
+vite.config.*.timestamp-*
+
+# env
+.env
+.env.*
+!.env.example
+.envrc
+
+# logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# editores
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# stack RAGFlow local (checkout independiente, no forma parte de esta app)
+# Anclado a la raíz a propósito: sin la barra, este patrón también ignoraba
+# iac/k8s/components/apps/rag/ragflow/ (el componente Kustomize, que SÍ va al repo).
+/ragflow
+
+# iac — secretos de tenant. Los .env de forjate no se llaman ".env", así que
+# los patrones de arriba no los cubren.
+iac/**/secrets/*.env
+!iac/**/secrets/*.env.example
+
+# credenciales de cluster: nunca al repo
+kubeconfig
+*.kubeconfig
+*.pem
+*.key
+*.p12
+*.pfx
+
+# herramientas locales
+.claude/settings.local.json

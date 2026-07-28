@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ragflow-service-conf
+data:
+  # Cablea RAGFlow → LiteLLM. Lo único propio de este overlay es el bloque
+  # `user_default_llm` del final; todo lo de arriba es copia literal del
+  # componente vendorizado.
+  #
+  # POR QUÉ SE REESCRIBE LA PLANTILLA ENTERA: el valor de una clave de ConfigMap
+  # es un string opaco. Kustomize no sabe insertar "un bloque más" adentro; un
+  # patch sobre `service_conf.yaml.template` reemplaza el archivo completo. Al
+  # mover RAGFlow a la factory (o al bumpear el componente), re-diffeá:
+  #   diff <(yq '.data["service_conf.yaml.template"]' \
+  #             ../../components/apps/rag/ragflow/service-conf.yaml) \
+  #        <(yq '.data["service_conf.yaml.template"]' \
+  #             patches/ragflow-litellm-patch.yaml)
+  # y esperá exactamente el bloque user_default_llm como única diferencia.
+  service_conf.yaml.template: |
+    ragflow:
+      host: ${RAGFLOW_HOST:-0.0.0.0}
+      http_port: 9380
+    admin:
+      host: ${RAGFLOW_HOST:-0.0.0.0}
+      http_port: 9381
+    mysql:
+      name: '${MYSQL_DBNAME:-rag_flow}'
+      user: '${MYSQL_USER:-root}'
+      password: '${MYSQL_PASSWORD}'
+      host: '${MYSQL_HOST:-ragflow-mysql}'
+      port: ${MYSQL_PORT:-3306}
+      max_connections: 900
+      stale_timeout: 300
+      max_allowed_packet: ${MYSQL_MAX_PACKET:-1073741824}
+    minio:
+      user: '${MINIO_USER}'
+      password: '${MINIO_PASSWORD}'
+      host: '${MINIO_HOST}:${MINIO_PORT}'
+      bucket: '${MINIO_BUCKET:-}'
+      prefix_path: '${MINIO_PREFIX_PATH:-}'
+    es:
+      hosts: 'http://${ES_HOST:-ragflow-elasticsearch}:${ES_PORT:-9200}'
+      username: '${ES_USER:-elastic}'
+      password: '${ELASTIC_PASSWORD}'
+    redis:
+      db: 1
+      username: '${REDIS_USERNAME:-}'
+      password: '${REDIS_PASSWORD}'
+      host: '${REDIS_HOST:-ragflow-redis}:${REDIS_PORT:-6379}'
+    # --- LiteLLM ------------------------------------------------------------
+    # RAGFlow no habla con Anthropic/OpenAI/Gemini: habla con el proxy, que
+    # expone la API de OpenAI. Así las keys de proveedor viven sólo en
+    # litellm-secret y cambiar de modelo es cambiar un nombre acá.
+    #
+    # OJO AL EDITAR: el entrypoint pasa cada línea de esta plantilla por
+    # 'eval echo', también los comentarios. Nada de backticks, comillas dobles,
+    # backslash ni signo peso que no sea una variable a expandir: la shell los
+    # reevalúa y rompe el arranque.
+    #
+    # factory: 'OpenAI-API-Compatible' es el nombre exacto que RAGFlow busca en
+    # conf/llm_factories.json. Tiene que matchear tal cual.
+    #
+    # name: es la ruta de LiteLLM -- proveedor/modelo -- la que matchean los
+    # wildcards de configs/litellm-config.yaml. Hoy apunta a Gemini porque es el
+    # único proveedor con key cargada en litellm.env; para mover el default a
+    # Claude alcanza con anthropic/claude-sonnet-4-5 más su ANTHROPIC_API_KEY.
+    #
+    # base_url SIN barra final, a propósito: el cliente de chat lo usa tal cual
+    # y el de embeddings le hace urljoin con 'v1' -- con /v1/ terminaría
+    # pegándole a /v1/v1.
+    #
+    # api_key sale de ragflow-secret vía envFrom: el entrypoint expande esta
+    # plantilla contra el entorno del proceso. Vacía, RAGFlow arranca igual y el
+    # modelo falla recién al invocarlo.
+    user_default_llm:
+      factory: 'OpenAI-API-Compatible'
+      api_key: '${LITELLM_API_KEY}'
+      base_url: 'http://litellm:4000/v1'
+      default_models:
+        chat_model:
+          name: 'gemini/gemini-2.5-flash'
+        embedding_model:
+          name: 'gemini/gemini-embedding-001'

@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: back
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: back
+  template:
+    metadata:
+      labels:
+        app: back
+    spec:
+      # Las migraciones corren antes que la app, no desde la app: con 2 réplicas
+      # dos procesos migrarían a la vez. Prisma toma un advisory lock, así que
+      # el segundo initContainer espera al primero en vez de chocar.
+      initContainers:
+        - name: migrate
+          image: ai-form-creator/back
+          # La imagen se importa a mano al containerd de k3s; no hay registry
+          # del que bajarla. Ver el bloque `images` del kustomization.
+          imagePullPolicy: IfNotPresent
+          command:
+            ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
+          env:
+            # El CLI de Prisma escribe caché en $HOME; el rootfs es de sólo
+            # lectura y /tmp es el único emptyDir montado.
+            - name: HOME
+              value: /tmp
+          envFrom:
+            - secretRef:
+                name: back-secret
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: back
+          # NestJS + Prisma. El cableado a Postgres / RAGFlow sale de
+          # back-config (no secreto) y back-secret (DATABASE_URL, API keys).
+          # Temporal todavía no está conectado: TEMPORAL_ADDRESS queda listo
+          # para cuando exista esa capa.
+          image: ai-form-creator/back
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: back-config
+            - secretRef:
+                name: back-secret
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

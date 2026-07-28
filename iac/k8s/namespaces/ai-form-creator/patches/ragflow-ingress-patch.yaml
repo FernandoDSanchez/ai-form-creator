@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ragflow-ingress
+spec:
+  rules:
+    - host: "ragflow.192.168.18.23.nip.io" # nip.io → IP del nodo; ver ingress.yaml
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ragflow
+                port:
+                  number: 80

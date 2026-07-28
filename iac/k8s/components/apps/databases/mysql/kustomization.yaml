@@ -1,0 +1,36 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# MySQL 8 — generic reusable database component
+#
+# Resources: StatefulSet (mysql), Service (mysql)
+#
+# Distinct from the `mariadb` component on purpose: some applications
+# (RAGFlow among them) require genuine MySQL 8 semantics — the
+# mysql_native_password auth plugin, utf8mb4_unicode_ci collation and
+# a 1GB max_allowed_packet. Use `mariadb` for everything else.
+#
+# Tenant overlay must provide real credentials via:
+#   - SealedSecret replacing mysql-secret, OR
+#   - secretGenerator in overlay
+# with keys:
+#   MYSQL_ROOT_PASSWORD  (required)
+#   MYSQL_DATABASE       (optional — created on first start)
+#   MYSQL_USER + MYSQL_PASSWORD (optional — creates a non-root user;
+#                                the image needs BOTH or neither)
+#
+# To run multiple instances in the same namespace, use namePrefix
+# in an intermediate kustomization:
+#   resources:
+#     - path/to/databases/mysql
+#   namePrefix: myapp-
+#   → produces: myapp-mysql (StatefulSet, Service)
+
+resources:
+  # - secret.yaml # Tenant overlay must provide real credentials (SealedSecret, secretGenerator, etc.)
+  - service.yaml
+  - statefulset.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/ait-component: mysql

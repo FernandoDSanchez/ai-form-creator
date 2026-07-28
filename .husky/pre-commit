@@ -1,0 +1,2 @@
+(cd apps/front && npx lint-staged)
+(cd apps/back && npx lint-staged)

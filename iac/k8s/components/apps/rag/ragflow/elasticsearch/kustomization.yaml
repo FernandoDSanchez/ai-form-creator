@@ -1,0 +1,56 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Wraps the generic elasticsearch component with a ragflow- prefix
+# Produces: ragflow-elasticsearch (StatefulSet, Service)
+# Tenant must provide ragflow-secret (via SealedSecret, secretGenerator, etc.)
+#
+# Skip this wrapper and patch ES_HOST in ragflow-config if you already run an
+# Elasticsearch that RAGFlow can share — it namespaces its own indices.
+resources:
+  - ../../../databases/elasticsearch/
+
+namePrefix: ragflow-
+
+patches:
+  # namePrefix won't propagate to secretKeyRef when the Secret is not in the
+  # build, so we point it at the single shared ragflow-secret explicitly
+  - target:
+      kind: StatefulSet
+      name: elasticsearch
+    patch: |-
+      apiVersion: apps/v1
+      kind: StatefulSet
+      metadata:
+        name: elasticsearch
+      spec:
+        template:
+          spec:
+            containers:
+              - name: elasticsearch
+                env:
+                  - name: ELASTIC_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: ragflow-secret
+                        key: ELASTIC_PASSWORD
+  # namePrefix renames resources but leaves the `app` label alone, so a generic
+  # elasticsearch deployed in the same namespace would end up sharing this
+  # Service. Rename the label on both sides to keep the two instances apart.
+  - target:
+      kind: StatefulSet
+      name: elasticsearch
+    patch: |-
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: ragflow-elasticsearch
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: ragflow-elasticsearch
+  - target:
+      kind: Service
+      name: elasticsearch
+    patch: |-
+      - op: replace
+        path: /spec/selector/app
+        value: ragflow-elasticsearch

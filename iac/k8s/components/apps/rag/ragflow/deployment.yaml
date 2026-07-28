@@ -1,0 +1,136 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ragflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ragflow
+  # The image runs the web server, the task executors and the datasource
+  # workers in one container and they contend for the same MinIO buckets,
+  # so never roll a second pod alongside the old one.
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: ragflow
+    spec:
+      # entrypoint.sh runs `set -e`, and its web server supervisor loop runs
+      # ragflow_server.py in the FOREGROUND:
+      #
+      #   while true; do "$PY" api/ragflow_server.py; sleep 1; done &
+      #
+      # so a single non-zero exit kills the loop for good — unlike the data
+      # sync / task executor loops, which use `cmd & wait` and do retry. If
+      # Elasticsearch is not serving yet the API server raises "Elasticsearch
+      # is unhealthy in 10s", exits 1, and never comes back, while nginx keeps
+      # answering :80. The result is a pod that reports Ready while every
+      # /api/v1/* request 502s. Gate the start on the dependencies being up.
+      #
+      # Reuses the RAGFlow image so no extra layer is pulled — it is already on
+      # the node and ships bash + curl.
+      initContainers:
+        - name: wait-for-deps
+          image: infiniflow/ragflow:v0.26.4
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -u
+              waitTcp() {
+                until (exec 3<>"/dev/tcp/$1/$2") 2>/dev/null; do
+                  echo "[wait] $3 ($1:$2) not reachable yet..."
+                  sleep 3
+                done
+                exec 3<&- 3>&-
+                echo "[wait] $3 is reachable."
+              }
+              waitTcp "$MYSQL_HOST" "$MYSQL_PORT" mysql
+              waitTcp "$REDIS_HOST" "$REDIS_PORT" redis
+              # Elasticsearch accepts TCP well before it can serve queries, so
+              # poll cluster health rather than the socket.
+              until curl -sf -u "$ES_USER:$ELASTIC_PASSWORD" \
+                    "http://$ES_HOST:$ES_PORT/_cluster/health?wait_for_status=yellow&timeout=5s" \
+                    >/dev/null; do
+                echo "[wait] elasticsearch ($ES_HOST:$ES_PORT) not healthy yet..."
+                sleep 3
+              done
+              echo "[wait] elasticsearch is healthy. All dependencies ready."
+          envFrom:
+            - configMapRef:
+                name: ragflow-config
+            - secretRef:
+                name: ragflow-secret
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
+      containers:
+        - name: ragflow
+          image: infiniflow/ragflow:v0.26.4
+          # Default entrypoint behaviour already enables the web server, the
+          # task executor and datasource sync. --init-model-provider-tables
+          # seeds the model provider catalogue, as upstream compose does.
+          # Add --enable-mcpserver / --enable-adminserver here via patch if
+          # you want the MCP (9382) or admin (9381) endpoints.
+          args:
+            - --init-model-provider-tables
+          ports:
+            - name: http
+              containerPort: 80
+            - name: api
+              containerPort: 9380
+          envFrom:
+            - configMapRef:
+                name: ragflow-config
+            - secretRef:
+                name: ragflow-secret
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+          # Probe the API port (9380), NOT nginx on :80. nginx starts before
+          # ragflow_server.py and keeps serving the SPA with a 200 even when the
+          # API behind it is dead, so a probe on :80 reports a healthy pod while
+          # every /api/v1/* call returns 502. Port 9380 is the actual liveness
+          # signal: if it stops listening, the API is down and — because the
+          # supervisor loop cannot restart it (see initContainers above) — only
+          # a container restart recovers it.
+          #
+          # The image is several GB and the first start runs schema migrations,
+          # so allow up to 15 minutes before declaring the pod failed.
+          startupProbe:
+            tcpSocket:
+              port: api
+            periodSeconds: 15
+            failureThreshold: 60
+          readinessProbe:
+            tcpSocket:
+              port: api
+            periodSeconds: 15
+          livenessProbe:
+            tcpSocket:
+              port: api
+            periodSeconds: 30
+          volumeMounts:
+            - name: service-conf
+              mountPath: /ragflow/conf/service_conf.yaml.template
+              subPath: service_conf.yaml.template
+            - name: logs
+              mountPath: /ragflow/logs
+      volumes:
+        - name: service-conf
+          configMap:
+            name: ragflow-service-conf
+        - name: logs
+          emptyDir: {}
+      restartPolicy: Always

@@ -1,0 +1,13 @@
+import { describe, expect, it } from 'vitest';
+
+import { renderApp } from '@/testing/test-utils';
+
+import { {{pascalCase name}} } from '../{{kebabCase name}}';
+
+describe('{{pascalCase name}}', () => {
+  it('se renderiza', () => {
+    const { container } = renderApp(<{{pascalCase name}} />);
+
+    expect(container).toBeInTheDocument();
+  });
+});

@@ -1,0 +1,30 @@
+import { Spinner } from '@/components/ui/spinner/spinner';
+
+import { use{{pascalCase entity}}s } from '../api/get-{{kebabCase entity}}s';
+
+export const {{pascalCase entity}}sList = () => {
+  const listQuery = use{{pascalCase entity}}s();
+
+  if (listQuery.isLoading) {
+    return (
+      <div className="py-xl flex justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
+
+  const items = listQuery.data ?? [];
+
+  return (
+    <ul className="gap-md grid">
+      {items.map((item) => (
+        <li
+          key={item.id}
+          className="bg-surface border-border p-md rounded-lg border"
+        >
+          {item.id}
+        </li>
+      ))}
+    </ul>
+  );
+};

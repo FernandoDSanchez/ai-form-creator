@@ -1,0 +1,79 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Wraps the generic redis component with a ragflow- prefix
+# Produces: ragflow-redis (Deployment, Service)
+# Tenant must provide ragflow-secret (via SealedSecret, secretGenerator, etc.)
+#
+# The generic component runs Redis without authentication, but RAGFlow always
+# sends AUTH, so the patch below turns on requirepass and teaches the probes to
+# authenticate. It also caps memory the way upstream RAGFlow does.
+#
+# NOTE: the generic component stores data in an emptyDir, so a pod restart
+# drops whatever parse tasks were still queued. Documents already ingested are
+# safe — they live in MinIO and Elasticsearch. To make the queue durable, patch
+# the volume to a PVC from the overlay.
+# Redis SÍ existe en la factory, así que no lo vendorizamos: lo tomamos remoto
+# y seguimos recibiendo sus fixes. Los componentes vecinos (mysql,
+# elasticsearch) sí están vendorizados porque todavía no existen upstream.
+resources:
+  - https://github.com/AItizate/forjate.git//k8s/components/apps/databases/redis?ref=7ac17e6a07446969b2b12004f694e09aa134642e
+
+namePrefix: ragflow-
+
+patches:
+  - target:
+      kind: Deployment
+      name: redis
+    patch: |-
+      apiVersion: apps/v1
+      kind: Deployment
+      metadata:
+        name: redis
+      spec:
+        template:
+          spec:
+            containers:
+              - name: redis
+                command:
+                  - sh
+                  - -c
+                  - exec redis-server --appendonly yes --requirepass "$REDIS_PASSWORD" --maxmemory 256mb --maxmemory-policy allkeys-lru
+                env:
+                  - name: REDIS_PASSWORD
+                    valueFrom:
+                      secretKeyRef:
+                        name: ragflow-secret
+                        key: REDIS_PASSWORD
+                readinessProbe:
+                  exec:
+                    command:
+                      - sh
+                      - -c
+                      - redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
+                livenessProbe:
+                  exec:
+                    command:
+                      - sh
+                      - -c
+                      - redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
+  # namePrefix renames resources but leaves the `app` label alone, so a generic
+  # redis deployed in the same namespace would end up sharing this Service.
+  # Rename the label on both sides to keep the two instances apart.
+  - target:
+      kind: Deployment
+      name: redis
+    patch: |-
+      - op: replace
+        path: /spec/selector/matchLabels/app
+        value: ragflow-redis
+      - op: replace
+        path: /spec/template/metadata/labels/app
+        value: ragflow-redis
+  - target:
+      kind: Service
+      name: redis
+    patch: |-
+      - op: replace
+        path: /spec/selector/app
+        value: ragflow-redis

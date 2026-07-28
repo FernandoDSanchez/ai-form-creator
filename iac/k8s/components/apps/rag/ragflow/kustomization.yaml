@@ -1,0 +1,54 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# RAGFlow — document-centric RAG engine (DeepDoc parsing + knowledge bases + chat)
+# Docs: docs/apps/ragflow.md
+#
+# Resources: Deployment (ragflow), Service (ragflow), Ingress (ragflow-ingress),
+#            ConfigMap (ragflow-config), ConfigMap (ragflow-service-conf)
+#
+# This kustomization ships RAGFlow ONLY. Its four backing services are opt-in,
+# exactly like litellm/postgres — see CONTRIBUTING.md "Components that depend
+# on other components".
+#
+# Dependencies (add alongside this component in the tenant overlay):
+#   - ./mysql          → ragflow-mysql          (wraps databases/mysql)
+#   - ./redis          → ragflow-redis          (wraps databases/redis, adds auth)
+#   - ./elasticsearch  → ragflow-elasticsearch  (wraps databases/elasticsearch)
+#   - MinIO from k8s/base — the operator is in the base, the Tenant comes from
+#     k8s/components/apps/minio/single-server. RAGFlow creates its own buckets.
+#
+# Or take all four at once via k8s/components/bundles/ragflow-stack.
+#
+# To share an existing Elasticsearch / MySQL / Redis instead of running
+# dedicated ones, skip the wrapper and patch ES_HOST / MYSQL_HOST / REDIS_HOST
+# in ragflow-config.
+#
+# Tenant overlay must provide:
+#   - Secret "ragflow-secret" (the wrappers point at this same Secret) with:
+#       MYSQL_ROOT_PASSWORD  — consumed by MySQL on first start
+#       MYSQL_PASSWORD       — must be IDENTICAL, RAGFlow connects as root
+#       MYSQL_DATABASE       — rag_flow
+#       ELASTIC_PASSWORD     — set on Elasticsearch and used by RAGFlow
+#       REDIS_PASSWORD       — set on Redis and used by RAGFlow
+#       MINIO_USER           — MinIO credentials able to create buckets
+#       MINIO_PASSWORD
+#     Passwords must not contain `$`, a backtick or a backslash: the RAGFlow
+#     entrypoint expands the config template through `eval echo`.
+#   - Patch for ragflow-ingress hostname (defaults to ragflow.example.com)
+#   - Confirmation that MINIO_HOST/MINIO_PORT in ragflow-config match the
+#     Service the MinIO operator created for your Tenant
+#
+# Sizing: the image is several GB and the pod wants ~4Gi to parse comfortably.
+# The first start pulls the image and runs migrations — allow 10-15 minutes.
+
+resources:
+  - configmap.yaml
+  - service-conf.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/ait-component: ragflow

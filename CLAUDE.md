@@ -1,19 +1,20 @@
 # AI Form Creator — Guía para Claude Code
 
-Monorepo con dos apps:
+Monorepo con dos apps y un paquete compartido:
 
-| App          | Stack                             | Arquitectura                    |
-| ------------ | --------------------------------- | ------------------------------- |
-| `apps/front` | React 19 + Vite 8 + TS (Formily)  | bulletproof-react               |
-| `apps/back`  | NestJS 11 + Prisma 6 + Postgres   | hexagonal (puertos/adaptadores) |
+| Paquete              | Stack                            | Arquitectura                    |
+| -------------------- | -------------------------------- | ------------------------------- |
+| `apps/front`         | React 19 + Vite 8 + TS (Formily) | bulletproof-react               |
+| `apps/back`          | NestJS 11 + Prisma 6 + Postgres  | hexagonal (puertos/adaptadores) |
+| `packages/contracts` | TypeBox + TS                     | contratos que cruzan el cable   |
 
-**Las dos están forzadas por ESLint**: si rompes una regla arquitectónica, el
+**Los tres están forzados por ESLint**: si rompes una regla arquitectónica, el
 lint falla y el commit se bloquea (husky + lint-staged).
 
 > **Este documento describe `apps/front`.** Las secciones 2 y 3 (nombrado,
-> magic strings) aplican a las dos apps. Para el backend, la guía completa está
-> en [`apps/back/README.md`](./apps/back/README.md); el resumen está al final,
-> en la sección 9.
+> magic strings) aplican a los tres. Para el backend, la guía completa está
+> en [`apps/back/README.md`](./apps/back/README.md); el resumen está en la
+> sección 9. El paquete compartido está en la sección 10.
 
 > Nota: la carpeta `ragflow/` es un checkout independiente (stack RAGFlow local),
 > no forma parte de estas apps. Está ignorada por git, ESLint, Prettier y Vitest.
@@ -32,8 +33,14 @@ Los comandos de abajo son de `apps/front` (correr desde ahí).
 | `npm run generate`    | Plop: genera feature o componente                |
 | `npm run build`       | Typecheck + build de producción                  |
 
-Hooks de git: `pre-commit` → lint-staged (eslint --fix + prettier sobre lo
-staged). `pre-push` → `check-types` + `test`.
+Hooks de git (cubren los tres paquetes, `packages/contracts` primero):
+
+- `pre-commit` → lint-staged en cada uno (eslint --fix + prettier sobre lo
+  staged).
+- `pre-push` → `check-types` + `test` de las dos apps, precedido por
+  `check-types` + `build` del paquete de contratos. Ese build no es
+  decorativo: las apps tipan contra el `dist/` del paquete, así que sin
+  recompilar primero mirarían tipos viejos y darían verde en falso.
 
 ## 1. Arquitectura (obligatoria)
 
@@ -149,6 +156,7 @@ env.API_URL
 | Tokens visuales                       | `src/styles/index.css` (+ `config/design-tokens.ts`) |
 | Endpoints y query keys de una feature | `src/features/<x>/config/api-endpoints.ts`           |
 | Estados/variantes de una feature      | `src/features/<x>/config/*.ts`                       |
+| Estados que comparten front y back    | `packages/contracts/` (ver §10)                      |
 
 Regla práctica: **un literal que aparece dos veces, o que un no-autor no
 entendería, se nombra**. Los textos de UI en JSX sí pueden ser literales (aún no
@@ -295,9 +303,86 @@ Al añadir código, respeta esto:
 - **El dominio lanza errores propios, no `HttpException`.** La traducción a
   código HTTP es responsabilidad de `infrastructure/http/domain-exception.filter.ts`.
 - **Prisma no cruza a dominio.** Entre la fila y la entidad hay un mapper, aunque
-  hoy los campos coincidan uno a uno.
+  hoy los campos coincidan uno a uno. Ese mapper es además donde el `DateTime`
+  se vuelve string ISO (ver §10).
+- **Si la entidad la comparte el front, no se declara acá.** Vive en
+  `packages/contracts` y el archivo del dominio sólo la reexporta (§10). Que el
+  contrato sea compartido no lo hace infraestructura: es un paquete sin
+  framework, sin ORM y sin HTTP, así que el núcleo puede mirarlo sin romper la
+  regla de dependencias hacia adentro.
 - **El nombre del puerto no nombra a su proveedor**: `DocumentIngestion`, no
   `RagflowClient`. El proveedor se nombra en el adaptador.
 
 Comandos: `npm run dev | lint | check-types | test | build | db:deploy`.
 Swagger queda en `/docs`; el endpoint, bajo el prefijo `/api`.
+
+## 10. Contratos compartidos (`packages/contracts`)
+
+Lo que cruza la frontera HTTP se declara **una sola vez**, con
+[TypeBox](https://github.com/sinclairzx81/typebox), y lo consumen las dos apps.
+Si un campo cambia acá, las dos dejan de compilar hasta que se acomoden.
+
+```
+packages/contracts/src/
+├── formats.ts                    # registro de formatos JSON Schema
+└── <contexto>/
+    ├── <entidad>.ts              # schema + tipo derivado con Static<>
+    └── <entidad>-status.ts       # objeto `as const` + su schema
+```
+
+Cada contrato exporta las dos caras del mismo objeto: el **schema**
+(`regulatoryDocumentSchema`, JSON Schema en runtime) y el **tipo**
+(`RegulatoryDocument`, derivado con `Static<typeof …>`, nunca escrito a mano).
+
+### Reglas
+
+- **Un contrato sólo importa lo que el `package.json` declara como
+  `dependencies`** — hoy, TypeBox. Nada de Nest, Prisma, React ni utilidades de
+  una de las apps: lo que entre acá se lo comen las dos. Lo verifica
+  `import-x/no-extraneous-dependencies`.
+- **Las fechas viajan como string ISO 8601, no como `Date`.** Lo que cruza el
+  cable es JSON; tipar `createdAt: Date` haría que el front creyera tener un
+  `Date` cuando recibe un string. La conversión ocurre en un solo lugar: el
+  mapper de Prisma del back.
+- **Sin barrel** (igual que §1): se importa el archivo concreto por su subpath,
+  `@ai-form-creator/contracts/<contexto>/<entidad>`.
+- **Cada app lo expone por su propia puerta**, y el resto del código importa esa
+  puerta, no el paquete:
+  `apps/back/src/<contexto>/domain/<entidad>.ts` y
+  `apps/front/src/features/<x>/types/<entidad>.ts` sólo reexportan.
+- **Los `Type.*()` de nivel de módulo llevan `/* @__PURE__ */`.** Sin la
+  anotación el bundler ve una llamada a función, la asume con efectos y se
+  trae TypeBox entero al bundle del front aunque sólo se haya importado el
+  objeto de estados.
+- **Un `format` hay que registrarlo en `formats.ts`.** TypeBox no trae ninguno
+  de fábrica y un formato desconocido no se ignora: `Value.Check` devuelve
+  `false` con `Unknown format 'uuid'`. Los schemas importan `formats.uuid` en
+  vez del literal justamente para que el registro viaje como dependencia real
+  del módulo.
+
+### Consumo
+
+Se distribuye compilado (`dist/`, ignorado por git) en CJS y ESM a la vez: el
+back es CommonJS y el front es ESM. Las apps lo declaran con
+`"@ai-form-creator/contracts": "file:../../packages/contracts"`, y npm lo enlaza
+por symlink — un `npm run build` en el paquete se ve al toque desde las apps.
+
+**En un clone nuevo hay que compilarlo antes de tocar las apps.** Desde
+`apps/back` hay atajo: `npm run contracts:build`. A propósito no hay script
+`prepare`: npm lo correría durante el `npm install` de la app que enlaza el
+paquete, cuando las devDependencies de acá todavía no existen, y el install
+fallaría con un `tsc: not found` bastante opaco.
+
+⚠️ Las imágenes Docker de las dos apps se construyen **desde la raíz del repo**
+(`docker build -f apps/<x>/Dockerfile .`), no desde la carpeta de la app: la
+dependencia `file:` queda fuera de un contexto más angosto. Y el
+`node_modules` del paquete viaja a la imagen, porque npm resuelve el symlink a
+su ruta real y los imports que salen de `packages/contracts/dist/**` se buscan
+desde ahí, no desde el `node_modules` de la app.
+
+### Agregar un contrato
+
+1. Creá `src/<contexto>/<entidad>.ts` con el schema y su `Static<>`.
+2. `npm run lint && npm run check-types && npm run build`.
+3. Reexportalo desde la puerta de cada app que lo use. El wildcard de `exports`
+   ya cubre el subpath: no hay que tocar el `package.json`.

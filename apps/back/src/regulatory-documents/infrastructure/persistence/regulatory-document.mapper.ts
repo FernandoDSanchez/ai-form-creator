@@ -5,9 +5,13 @@ import type { RegulatoryDocument } from '../../domain/regulatory-document';
 /**
  * Fila de Postgres → entidad de dominio.
  *
- * Parece redundante hoy (los campos coinciden uno a uno) y sin embargo es lo
- * que evita que `@prisma/client` se filtre al núcleo: el día que la tabla gane
- * una columna de auditoría o se parta en dos, el cambio muere acá.
+ * Evita que `@prisma/client` se filtre al núcleo: el día que la tabla gane una
+ * columna de auditoría o se parta en dos, el cambio muere acá.
+ *
+ * Es además el único punto donde `DateTime` se vuelve string ISO 8601. La
+ * entidad es el contrato compartido con el front (`@ai-form-creator/contracts`)
+ * y por el cable viaja JSON, así que la conversión pasa una sola vez, en el
+ * borde de la persistencia, y no en cada adaptador que serialice la entidad.
  */
 export const toRegulatoryDocument = (
   row: RegulatoryDocumentRow,
@@ -22,6 +26,6 @@ export const toRegulatoryDocument = (
   // que TypeScript acepta la asignación directa. Si divergieran, el error
   // saltaría acá — que es justamente donde queremos enterarnos.
   status: row.status,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
 });

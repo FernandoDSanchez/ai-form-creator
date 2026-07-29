@@ -21,6 +21,8 @@ import { RegisterRegulatoryDocumentUseCase } from '../register-regulatory-docume
 const DOCUMENT_ID = 'e2f0b2ac-2c31-4a1f-9f1d-4a7d2e1a55aa';
 const RAGFLOW_DOCUMENT_ID = 'b330ec2e91ec11efbc510242ac120004';
 const RAGFLOW_DATASET_ID = '527fa74891e811ef9c650242ac120006';
+/** La entidad es el contrato compartido: las fechas son string ISO, no `Date`. */
+const EPOCH = new Date(0).toISOString();
 
 const aPdf = (): UploadedFile => ({
   fileName: 'resolucion-1234.pdf',
@@ -44,8 +46,8 @@ const aRepository = (): RegulatoryDocumentRepository => ({
         Promise.resolve({
           ...document,
           id: DOCUMENT_ID,
-          createdAt: new Date(0),
-          updatedAt: new Date(0),
+          createdAt: EPOCH,
+          updatedAt: EPOCH,
         }),
     ),
 });

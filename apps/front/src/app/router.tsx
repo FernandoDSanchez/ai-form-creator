@@ -40,6 +40,11 @@ export const createAppRouter = (queryClient: QueryClient) =>
       lazy: () => import('./routes/forms/form').then(convert(queryClient)),
     },
     {
+      path: paths.regulatoryDocuments.root.path,
+      lazy: () =>
+        import('./routes/regulatory-documents').then(convert(queryClient)),
+    },
+    {
       path: paths.notFound.path,
       lazy: () => import('./routes/not-found').then(convert(queryClient)),
     },

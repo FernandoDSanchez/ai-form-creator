@@ -13,6 +13,25 @@ spec:
     - host: "app.192.168.18.23.nip.io"
       http:
         paths:
+          # La API se sirve bajo el MISMO origen que el front, y no en
+          # api.<host>, para que no haya CORS en el medio: el `api-client` manda
+          # `withCredentials: true`, y contra `Access-Control-Allow-Origin: *`
+          # el navegador bloquea la respuesta. Mismo origen también deja que
+          # las cookies funcionen solas el día que haya sesión.
+          #
+          # `/api` es además el prefijo global del back (`setGlobalPrefix`), así
+          # que el path viaja tal cual: nada de rewrites. El front se construye
+          # con VITE_APP_API_URL=/api (ver .env.example).
+          #
+          # Va primero a propósito: es la ruta más específica y tiene que ganarle
+          # al `/` que se lleva todo lo demás al front.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: back
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:

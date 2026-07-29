@@ -84,13 +84,23 @@ docker.io y el pod queda en `ErrImagePull`.
 
 ```bash
 # --- back ---
-docker build -t ai-form-creator/back:dev apps/back
+# Contexto = raíz del repo (no apps/back): el back depende de
+# packages/contracts por `file:`, que queda fuera de un contexto más angosto.
+docker build -t ai-form-creator/back:dev -f apps/back/Dockerfile .
 
 # --- front ---
 # Vite hornea las VITE_APP_* dentro del bundle: son build-time, no runtime.
 # Apuntar a otro entorno = reconstruir la imagen, no cambiar un env del pod.
-docker build -t ai-form-creator/front:dev apps/front \
-  --build-arg VITE_APP_API_URL=http://api.192.168.18.23.nip.io \
+# Mismo caso que el back: contexto = raíz del repo.
+#
+# VITE_APP_API_URL=/api y NO http://api.<host>: el front le habla al back por el
+# mismo origen, a través del path /api del Ingress de `app.<host>`. Con hosts
+# distintos el navegador bloquea las respuestas —el api-client manda
+# `withCredentials: true` y el back responde `Allow-Origin: *`, combinación que
+# CORS prohíbe—. `/api` es además el prefijo global del back, así que el path
+# llega tal cual. El host api.<host> sigue existiendo para Swagger y curl.
+docker build -t ai-form-creator/front:dev -f apps/front/Dockerfile . \
+  --build-arg VITE_APP_API_URL=/api \
   --build-arg VITE_APP_ENABLE_API_MOCKING=false \
   --build-arg VITE_APP_URL=http://app.192.168.18.23.nip.io
 

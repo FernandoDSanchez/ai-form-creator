@@ -42,7 +42,9 @@ export class RegulatoryDocumentResponse {
       fileName: document.fileName,
       sizeBytes: document.sizeBytes,
       status: document.status,
-      createdAt: document.createdAt.toISOString(),
+      // Ya viene como string ISO desde el mapper de Prisma: la entidad es el
+      // contrato compartido con el front y no maneja `Date`.
+      createdAt: document.createdAt,
     };
   }
 }

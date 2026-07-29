@@ -1,9 +1,13 @@
 // Esquema de la base de la app (Service `app-postgres` del namespace).
 //
 // Prisma vive en la capa de infraestructura: el modelo de acá NO es el modelo
-// de dominio. `src/regulatory-documents/domain/regulatory-document.ts` define la
-// entidad y `infrastructure/persistence/regulatory-document.mapper.ts` traduce
-// entre ambos. Cambiar una columna no debe obligar a tocar el dominio.
+// de dominio. La entidad se define en `@ai-form-creator/contracts` (el mismo
+// contrato que consume el front), `src/regulatory-documents/domain/regulatory-document.ts`
+// la expone al núcleo y `infrastructure/persistence/regulatory-document.mapper.ts`
+// traduce entre ambos. Cambiar una columna no debe obligar a tocar el dominio.
+//
+// Los `DateTime` de acá se vuelven string ISO 8601 en el mapper: la entidad
+// cruza a JSON y no maneja `Date`.
 
 generator client {
   provider = "prisma-client-js"

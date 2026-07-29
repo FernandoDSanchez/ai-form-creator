@@ -165,8 +165,11 @@ patches:
 # usan imagePullPolicy: IfNotPresent; sin eso el kubelet intentaría bajarlas de
 # docker.io y fallaría.
 #
-#   docker build -t ai-form-creator/back:dev apps/back
+#   docker build -t ai-form-creator/back:dev -f apps/back/Dockerfile .
 #   docker save ai-form-creator/back:dev | sudo k3s ctr images import -
+#
+# El back se construye desde la raíz del repo, no desde apps/back: depende de
+# packages/contracts por `file:` y necesita ese directorio en el contexto.
 #
 # El front además necesita las VITE_APP_* como --build-arg: Vite las hornea en
 # el bundle, no se leen en runtime. El comando completo está en iac/README.md.

@@ -24,6 +24,13 @@ export const paths = {
     },
   },
 
+  regulatoryDocuments: {
+    root: {
+      path: '/regulatory-documents',
+      getHref: () => '/regulatory-documents',
+    },
+  },
+
   notFound: {
     path: '*',
     getHref: () => '/404',

@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "Contracts shared between apps/back and apps/front. TypeBox schemas: one definition, two consumers.",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=20.19.0"
   },

@@ -582,3 +582,7 @@ it('does not submit if a required field is missing', async () => {
 Adding a new form to the product **requires no code**: a new schema is enough,
 and the AI can generate it. Code only gets written when a field type that does
 not exist yet shows up.
+
+## License
+
+[Apache License 2.0](./LICENSE) — Copyright 2026 Fernando Sanchez.

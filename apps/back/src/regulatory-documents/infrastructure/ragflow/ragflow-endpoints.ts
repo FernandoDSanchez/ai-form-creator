@@ -1,12 +1,12 @@
 /**
- * URLs y contrato de la API de RAGFlow. Todo lo que sabe el backend sobre la
- * forma de esa API vive acá (mismo criterio que `config/api-endpoints.ts` de
- * cada feature del front).
+ * URLs and contract of the RAGFlow API. Everything the backend knows about the
+ * shape of that API lives here (same criterion as the `config/api-endpoints.ts`
+ * of every front feature).
  *
- * Referencia: `ragflow/docs/references/http_api_reference.md` → Upload documents.
+ * Reference: `ragflow/docs/references/http_api_reference.md` → Upload documents.
  */
 
-/** RAGFlow responde 200 siempre; el éxito se lee de `code`. */
+/** RAGFlow always answers 200; success is read from `code`. */
 export const RAGFLOW_SUCCESS_CODE = 0;
 
 export const ragflowEndpoints = {
@@ -14,5 +14,5 @@ export const ragflowEndpoints = {
     `/api/v1/datasets/${datasetId}/documents`,
 } as const;
 
-/** Campo multipart que espera RAGFlow (acepta varios; nosotros mandamos uno). */
+/** Multipart field RAGFlow expects (it accepts several; we send one). */
 export const RAGFLOW_FILE_FIELD = 'file';

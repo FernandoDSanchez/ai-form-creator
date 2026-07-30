@@ -1,239 +1,263 @@
-# iac — infraestructura de ai-form-creator
+# iac — ai-form-creator infrastructure
 
-Overlay Kustomize que compone la app sobre la factory
-[AItizate/forjate](https://github.com/AItizate/forjate), usando el **patrón
-remoto**: el base y los componentes genéricos se traen por URL pineada; lo
-propio vive acá.
+Kustomize overlay composing the app on top of the
+[AItizate/forjate](https://github.com/AItizate/forjate) factory, using the
+**remote pattern**: the base and the generic components are pulled by pinned
+URL; what is ours lives here.
 
 ## Layout
 
 ```
 iac/k8s/
-├── kustomization.yaml          raíz: base remoto + Tenant de MinIO + el namespace
-├── components/apps/            componentes vendorizados (ver más abajo)
+├── kustomization.yaml          root: remote base + MinIO Tenant + the namespace
+├── components/apps/            vendored components (see below)
 │   ├── databases/elasticsearch/
 │   ├── databases/mysql/
-│   └── rag/ragflow/            + wrappers mysql/ redis/ elasticsearch/
+│   └── rag/ragflow/            + mysql/ redis/ elasticsearch/ wrappers
 └── namespaces/
-    └── ai-form-creator/        TODO el proyecto en un namespace
-        ├── app-postgres/       wrapper namePrefix del Postgres de la app
+    └── ai-form-creator/        THE WHOLE project in one namespace
+        ├── app-postgres/       namePrefix wrapper of the app's Postgres
         ├── configs/            litellm-config.yaml
-        ├── patches/            ingress de RAGFlow y de Temporal + RAGFlow→LiteLLM
-        └── secrets/            un .env por Secret (no van al repo)
+        ├── patches/            RAGFlow and Temporal ingress + RAGFlow→LiteLLM
+        └── secrets/            one .env per Secret (never committed)
 ```
 
-Un solo namespace, a propósito: este cluster se comparte con otro proyecto que
-ya instaló la base de forjate, así que `ai-tools` (el namespace que crea el
-base) **no es nuestro**. Tener lo propio junto nos despega de esa base y el
-borrado es de un tirón: `kubectl delete ns ai-form-creator`.
+A single namespace, on purpose: this cluster is shared with another project
+that already installed the forjate base, so `ai-tools` (the namespace the base
+creates) **is not ours**. Keeping our own things together detaches us from that
+base and deleting is one command: `kubectl delete ns ai-form-creator`.
 
-### Lo que cuesta juntar todo: colisiones
+### What putting it all together costs: collisions
 
-Los componentes genéricos de la factory usan el nombre `postgres` y la label
-`app: postgres`. Con tres Postgres en el mismo namespace (app, Temporal,
-LiteLLM) eso choca de dos formas distintas, y la segunda es silenciosa:
+The factory's generic components use the name `postgres` and the label
+`app: postgres`. With three Postgres instances in the same namespace (app,
+Temporal, LiteLLM) that clashes in two different ways, and the second one is
+silent:
 
-| Choque | Síntoma | Solución acá |
+| Clash | Symptom | Solution here |
 | --- | --- | --- |
-| **Nombre** — StatefulSet/Service/Secret `postgres` | kustomize falla o un recurso pisa al otro | `./app-postgres` envuelve el nuestro con `namePrefix: app-`. El de Temporal queda sin prefijo porque vive dentro del bundle remoto y renombrarlo obligaría a parchear `POSTGRES_SEEDS` y dos `secretKeyRef` adentro. |
-| **Label** — `app: postgres` en los tres | Ningún error: los Services se roban los pods entre sí y Temporal escribe en la base de LiteLLM | Patch en `kustomization.yaml` que renombra la label en el StatefulSet y en el selector del Service. |
+| **Name** — StatefulSet/Service/Secret `postgres` | kustomize fails or one resource overwrites the other | `./app-postgres` wraps ours with `namePrefix: app-`. Temporal's stays unprefixed because it lives inside the remote bundle and renaming it would force patching `POSTGRES_SEEDS` and two `secretKeyRef` inside. |
+| **Label** — `app: postgres` on all three | No error at all: the Services steal each other's pods and Temporal writes into LiteLLM's database | A patch in `kustomization.yaml` renaming the label in the StatefulSet and in the Service selector. |
 
-`namePrefix` **no toca labels** — ese es el detalle que hace peligrosa la
-segunda fila. Si agregás otra instancia de un componente genérico, renombrale
-la label además del recurso, y verificá que cada Service matchee exactamente un
-workload antes de aplicar.
+`namePrefix` **does not touch labels** — that is the detail that makes the
+second row dangerous. If you add another instance of a generic component,
+rename its label as well as the resource, and check that every Service matches
+exactly one workload before applying.
 
-## Versión de la factory
+## Factory version
 
-Todo apunta a `?ref=7ac17e6a07446969b2b12004f694e09aa134642e`.
+Everything points at `?ref=7ac17e6a07446969b2b12004f694e09aa134642e`.
 
-**Tiene que ser el SHA completo de 40 caracteres** (o un tag). `git fetch` no
-resuelve SHAs cortos y kustomize falla con `couldn't find remote ref`.
+**It has to be the full 40-character SHA** (or a tag). `git fetch` does not
+resolve short SHAs and kustomize fails with `couldn't find remote ref`.
 
-**No uses `v1.0.0`.** Ese tag es anterior al desacople: mete Longhorn, LiteLLM y
-Open WebUI dentro del base, sin posibilidad de tomarlos como componentes
-opt-in. Este proyecto necesita LiteLLM como componente.
+**Do not use `v1.0.0`.** That tag predates the decoupling: it bakes Longhorn,
+LiteLLM and Open WebUI into the base, with no way of taking them as opt-in
+components. This project needs LiteLLM as a component.
 
-## Qué está vendorizado y por qué
+## What is vendored and why
 
-RAGFlow, MySQL y Elasticsearch **todavía no existen en la factory**, así que
-viven acá como copias. Redis sí existe upstream y se toma remoto.
+RAGFlow, MySQL and Elasticsearch **do not exist in the factory yet**, so they
+live here as copies. Redis does exist upstream and is taken remotely.
 
-Regla: **no edites los componentes vendorizados.** Cualquier ajuste va como
-patch desde `namespaces/rag/`. Así, cuando RAGFlow entre a forjate, migrar es:
+Rule: **do not edit the vendored components.** Any adjustment goes as a patch
+from `namespaces/rag/`. That way, when RAGFlow lands in forjate, migrating is:
 
 ```yaml
 # namespaces/rag/kustomization.yaml
 resources:
   - namespace.yaml
-  - https://github.com/AItizate/forjate.git//k8s/components/bundles/ragflow-stack?ref=<nuevo>
+  - https://github.com/AItizate/forjate.git//k8s/components/bundles/ragflow-stack?ref=<new>
 ```
 
-y borrar `components/apps/`.
+and deleting `components/apps/`.
 
-## Imágenes: construir e importar
+## Images: build and import
 
-No hay registry. Las imágenes de `front` y `back` se construyen local y se
-**importan a mano al containerd de k3s**, que es un almacén distinto del de
-Docker: que `docker images` la liste no significa que el kubelet la vea.
+There is no registry. The `front`, `back` and `worker` images are built locally
+and **imported by hand into the k3s containerd**, which is a different store
+from Docker's: `docker images` listing it does not mean the kubelet sees it.
 
-Por eso los dos Deployments usan `imagePullPolicy: IfNotPresent` y el bloque
-`images` del kustomization **no les reescribe el nombre** — el del manifiesto
-tiene que ser idéntico al del import. Sin eso, el kubelet las busca en
-docker.io y el pod queda en `ErrImagePull`.
+That is why the three Deployments use `imagePullPolicy: IfNotPresent` and the
+`images` block of the kustomization **does not rewrite their name** — the one in
+the manifest has to be identical to the one imported. Without that, the kubelet
+looks for them on docker.io and the pod ends up in `ErrImagePull`.
 
 ```bash
 # --- back ---
-docker build -t ai-form-creator/back:dev apps/back
+# Context = repo root (not apps/back): the back depends on packages/contracts
+# through `file:`, which falls outside a narrower context.
+docker build -t ai-form-creator/back:dev -f apps/back/Dockerfile .
+
+# --- worker ---
+# Same context as the back, for the same reason (packages/contracts).
+#
+# HEADS UP: its Dockerfile uses node:24-bookworm-slim and NOT alpine. The
+# Temporal SDK carries its core in Rust as a native binary and only publishes
+# prebuilds for glibc; on musl the image builds end to end and blows up at
+# startup, with a native module error that never mentions musl anywhere.
+docker build -t ai-form-creator/worker:dev -f apps/worker/Dockerfile .
 
 # --- front ---
-# Vite hornea las VITE_APP_* dentro del bundle: son build-time, no runtime.
-# Apuntar a otro entorno = reconstruir la imagen, no cambiar un env del pod.
-docker build -t ai-form-creator/front:dev apps/front \
-  --build-arg VITE_APP_API_URL=http://api.192.168.18.23.nip.io \
+# Vite bakes the VITE_APP_* into the bundle: they are build-time, not runtime.
+# Pointing at another environment = rebuilding the image, not changing a pod env.
+# Same case as the back: context = repo root.
+#
+# VITE_APP_API_URL=/api and NOT http://api.<host>: the front talks to the back
+# over the same origin, through the /api path of the `app.<host>` Ingress. With
+# different hosts the browser blocks the responses — the api-client sends
+# `withCredentials: true` and the back answers `Allow-Origin: *`, a combination
+# CORS forbids. `/api` is also the back's global prefix, so the path arrives
+# as-is. The api.<host> host still exists for Swagger and curl.
+docker build -t ai-form-creator/front:dev -f apps/front/Dockerfile . \
+  --build-arg VITE_APP_API_URL=/api \
   --build-arg VITE_APP_ENABLE_API_MOCKING=false \
   --build-arg VITE_APP_URL=http://app.192.168.18.23.nip.io
 
-# --- importar al containerd de k3s (necesita root: el socket es de root) ---
-docker save ai-form-creator/back:dev  | sudo k3s ctr images import -
-docker save ai-form-creator/front:dev | sudo k3s ctr images import -
+# --- import into the k3s containerd (needs root: the socket is root's) ---
+docker save ai-form-creator/back:dev   | sudo k3s ctr images import -
+docker save ai-form-creator/worker:dev | sudo k3s ctr images import -
+docker save ai-form-creator/front:dev  | sudo k3s ctr images import -
 
-# --- verificar que el kubelet las ve ---
+# --- check the kubelet sees them ---
 sudo k3s ctr images ls -q | grep ai-form-creator
 ```
 
-### Al actualizar una imagen
+### When updating an image
 
-`dev` es un tag mutable y la política es `IfNotPresent`: reimportar **no**
-reinicia nada, y los pods viejos siguen con la capa anterior. Hay que
-empujarlos:
+`dev` is a mutable tag and the policy is `IfNotPresent`: re-importing does
+**not** restart anything, and the old pods keep the previous layer. They have to
+be pushed:
 
 ```bash
 kubectl rollout restart deployment/back -n ai-form-creator
+kubectl rollout restart deployment/worker -n ai-form-creator
 kubectl rollout restart deployment/front -n ai-form-creator
 ```
 
-## Desplegar
+## Deploy
 
 ```bash
-# 0. Construir e importar las imágenes (ver la sección de arriba)
+# 0. Build and import the images (see the section above)
 
-# 1. Secretos (no van al repo)
+# 1. Secrets (never committed)
 find iac -name '*.env.example' | while read f; do cp -n "$f" "${f%.example}"; done
-#    y completá cada uno. Para RAGFlow: openssl rand -hex 32
-#    OJO: sin `$`, backtick ni backslash en los passwords de ragflow.env
+#    and fill each one in. For RAGFlow: openssl rand -hex 32
+#    HEADS UP: no `$`, backtick or backslash in the ragflow.env passwords
 
-# 2. Dominios: reemplazá los example.com
+# 2. Domains: replace the example.com placeholders
 grep -rn "example.com" iac/k8s/namespaces/
 
-# 3. Ver qué se va a aplicar
+# 3. See what is going to be applied
 kustomize build iac/k8s/
 
-# 4. Aplicar
+# 4. Apply
 kustomize build iac/k8s/ | kubectl apply -f -
 ```
 
-### ⚠️ Si el cluster ya tiene la base de forjate de otro proyecto
+### ⚠️ If the cluster already has another project's forjate base
 
-La raíz incluye el base remoto y le estampa `part-of: ai-form-creator` a todo
-lo que buildea. Sobre un cluster donde otro overlay ya instaló ese base, eso le
-reescribe las labels a infra compartida (traefik, operador de MinIO, CRDs,
-namespaces) y le borra su `app.kubernetes.io/overlay`. Comprobalo siempre antes:
+The root includes the remote base and stamps `part-of: ai-form-creator` on
+everything it builds. On a cluster where another overlay already installed that
+base, that rewrites the labels of shared infra (traefik, MinIO operator, CRDs,
+namespaces) and deletes its `app.kubernetes.io/overlay`. Always check first:
 
 ```bash
 kustomize build iac/k8s/ | kubectl diff -f -
 ```
 
-Si la base ya está puesta, no apliques la raíz: aplicá sólo lo propio.
+If the base is already in place, do not apply the root: apply only what is ours.
 
 ```bash
 kustomize build iac/k8s/namespaces/ai-form-creator | kubectl apply -f -
 
-# y el Tenant de MinIO suelto, si no hay ninguno (`kubectl get tenants -A`)
+# and the MinIO Tenant on its own, if there is none (`kubectl get tenants -A`)
 kustomize build 'https://github.com/AItizate/forjate.git//k8s/components/apps/minio/single-server?ref=7ac17e6a07446969b2b12004f694e09aa134642e' \
   | kubectl apply -f -
 ```
 
-## Lo que el base NO trae (y vas a necesitar)
+## What the base does NOT bring (and you will need)
 
-Verificado sobre el manifiesto renderizado — 85 recursos, 4 namespaces propios:
+Verified against the rendered manifest — 85 resources, 4 namespaces of its own:
 
-| Hueco | Consecuencia | Qué hacer |
+| Gap | Consequence | What to do |
 |---|---|---|
-| **cert-manager**: sólo los CRDs, sin el controlador | `Certificate/security-cert` queda inerte, no hay TLS automático | Instalá cert-manager (Helm) antes de aplicar |
-| **ClusterIssuer** `selfsigned-issuer` | El Certificate del base lo referencia y no existe | Creá el issuer, o borralo del build |
-| **oauth2-proxy**: sólo Middlewares + Ingress | El Ingress apunta a un Service `oauth2-proxy` inexistente → 503 si lo tocás | Inerte mientras no lo uses; agregá el workload cuando quieras SSO |
+| **cert-manager**: only the CRDs, no controller | `Certificate/security-cert` stays inert, there is no automatic TLS | Install cert-manager (Helm) before applying |
+| **ClusterIssuer** `selfsigned-issuer` | The base's Certificate references it and it does not exist | Create the issuer, or delete it from the build |
+| **oauth2-proxy**: only Middlewares + Ingress | The Ingress points at a non-existent `oauth2-proxy` Service → 503 if you touch it | Inert while you do not use it; add the workload when you want SSO |
 
-Ninguno rompe el `apply`: son recursos que quedan sin reconciliar.
+None of them breaks the `apply`: they are resources that stay unreconciled.
 
-## Cableado entre servicios
+## Wiring between services
 
-El backend recibe esto por `back-config` / `back-secret`:
+The backend receives this through `back-config` / `back-secret`.
 
-Al estar todo en el mismo namespace, alcanzan los nombres cortos:
+With everything in the same namespace, short names are enough:
 
-| Destino | Endpoint |
+| Destination | Endpoint |
 |---|---|
-| Postgres propio | `app-postgres:5432` |
+| Our own Postgres | `app-postgres:5432` |
 | Temporal | `temporal-server:7233` |
 | LiteLLM | `http://litellm:4000` |
 | RAGFlow (UI/proxy) | `http://ragflow` |
 | RAGFlow (API) | `http://ragflow:9380` |
 
-Ojo con `app-postgres`: el `-` viene del `namePrefix` del wrapper. El `postgres`
-pelado es el de Temporal.
+Mind `app-postgres`: the `-` comes from the wrapper's `namePrefix`. The bare
+`postgres` is Temporal's.
 
-LiteLLM no tiene Ingress: es sólo interno. RAGFlow y el backend le hablan a él,
-no a los proveedores — todas las credenciales de modelos quedan en un Secret.
+LiteLLM has no Ingress: it is internal only. RAGFlow and the backend talk to it,
+not to the providers — every model credential stays in a single Secret.
 
 ### RAGFlow → LiteLLM
 
-`patches/ragflow-litellm-patch.yaml` le agrega a la plantilla de `service_conf`
-un bloque `user_default_llm` que apunta a `http://litellm:4000/v1` con factory
-`OpenAI-API-Compatible`. La key sale de `ragflow-secret` (`LITELLM_API_KEY`).
+`patches/ragflow-litellm-patch.yaml` adds a `user_default_llm` block to the
+`service_conf` template pointing at `http://litellm:4000/v1` with the
+`OpenAI-API-Compatible` factory. The key comes from `ragflow-secret`
+(`LITELLM_API_KEY`).
 
-Dos cosas a saber antes de tocarlo:
+Two things to know before touching it:
 
-- **El patch reescribe la plantilla entera.** El valor de una clave de ConfigMap
-  es un string opaco: kustomize no puede insertarle un bloque, sólo reemplazarla.
-  Al bumpear el componente vendorizado hay que re-diffear el patch contra
-  `components/apps/rag/ragflow/service-conf.yaml`; la única diferencia esperada
-  es `user_default_llm`.
-- **Cada línea pasa por `eval echo`** en el entrypoint de RAGFlow, comentarios
-  incluidos. Backticks, comillas dobles, `\` o `$` sueltos rompen el arranque.
+- **The patch rewrites the whole template.** The value of a ConfigMap key is an
+  opaque string: kustomize cannot insert a block into it, only replace it. When
+  bumping the vendored component the patch has to be re-diffed against
+  `components/apps/rag/ragflow/service-conf.yaml`; the only expected difference
+  is `user_default_llm`.
+- **Every line goes through `eval echo`** in the RAGFlow entrypoint, comments
+  included. Backticks, double quotes, a loose `\` or `$` break the startup.
 
-Con esto RAGFlow queda apuntando al proxy, pero todavía hacen falta dos pasos
-manuales (virtual key + alta del proveedor en la UI): ver `HUMAN-TASK.md`.
+With this RAGFlow points at the proxy, but two manual steps are still needed
+(virtual key + registering the provider in the UI): see `HUMAN-TASK.md`.
 
-## Costo de recursos
+## Resource cost
 
-Piso aproximado: **~7Gi de memoria en requests** y **~65Gi de almacenamiento**
-(Elasticsearch 20Gi, MySQL 10Gi, tres Postgres 10Gi c/u, MinIO 4Gi). RAGFlow
-solo pide 2Gi y su imagen pesa varios GB — el primer arranque puede tardar
-10-15 minutos entre pull y migraciones.
+Approximate floor: **~7Gi of memory in requests** and **~65Gi of storage**
+(Elasticsearch 20Gi, MySQL 10Gi, three Postgres 10Gi each, MinIO 4Gi). RAGFlow
+alone asks for 2Gi and its image weighs several GB — the first boot can take
+10-15 minutes between the pull and the migrations.
 
-No entra cómodo en un k3d de laptop. Para desarrollar local, lo práctico es
-levantar todo menos `namespaces/rag` y apuntar `RAGFLOW_BASE_URL` al checkout
-Docker Compose de `ragflow/` (ver `RAGFLOW-STARTUP.md`).
+It does not fit comfortably in a laptop k3d. To develop locally, the practical
+approach is to bring up everything except `namespaces/rag` and point
+`RAGFLOW_BASE_URL` at the Docker Compose checkout in `ragflow/` (see
+`RAGFLOW-STARTUP.md`).
 
-## Pendiente
+## Pending
 
-- **Registry**: hoy las imágenes se importan a mano (ver «Imágenes»), lo que
-  ata el deploy a la máquina que las construyó y pide `sudo` cada vez. Cuando
-  haya uno, alcanza con agregarle `newName` a las dos entradas del bloque
-  `images` y pasar los Deployments a `imagePullPolicy: Always` (con tags
-  mutables como `dev`, `IfNotPresent` se queda con la copia cacheada).
-  Dos caminos evaluados:
-  - **ghcr.io** — k3s ya confía en su TLS, así que no hay que tocar el nodo.
-    Los paquetes nacen privados: o se hacen públicos, o hace falta un
-    `imagePullSecret` con un PAT de sólo `read:packages`.
-  - **Registry en el cluster** — hay uno en `registry.192-168-18-23.sslip.io`
-    (namespace `minuta`, catálogo vacío). Cuesta más: sirve TLS con el cert
-    autofirmado de Traefik, así que pide `/etc/docker/daemon.json` y
-    `/etc/rancher/k3s/registries.yaml`, y este último **sólo se lee al
-    arrancar** → `systemctl restart k3s`, que reinicia todos los pods del
-    cluster, incluidos los de `minuta`.
-- **CI**: en el deploy, `kustomize edit set image ai-form-creator/back=$REGISTRY/back:$GIT_SHA`.
-- **`MINIO_HOST`**: confirmá el Service real del Tenant antes del primer deploy
-  con `kubectl get svc -n minio-operator`. El default asume `minio` en el
-  puerto 80; si no coincide, parcheá `ragflow-config`.
+- **Registry**: today the images are imported by hand (see "Images"), which ties
+  the deploy to the machine that built them and asks for `sudo` every time. Once
+  there is one, adding `newName` to the entries of the `images` block and moving
+  the Deployments to `imagePullPolicy: Always` is enough (with mutable tags like
+  `dev`, `IfNotPresent` sticks to the cached copy).
+  Two paths evaluated:
+  - **ghcr.io** — k3s already trusts its TLS, so the node needs no changes.
+    Packages are born private: either they are made public, or an
+    `imagePullSecret` with a `read:packages`-only PAT is needed.
+  - **In-cluster registry** — there is one at
+    `registry.192-168-18-23.sslip.io` (namespace `minuta`, empty catalogue). It
+    costs more: it serves TLS with Traefik's self-signed cert, so it needs
+    `/etc/docker/daemon.json` and `/etc/rancher/k3s/registries.yaml`, and the
+    latter **is only read at boot** → `systemctl restart k3s`, which restarts
+    every pod in the cluster, `minuta`'s included.
+- **CI**: on deploy, `kustomize edit set image ai-form-creator/back=$REGISTRY/back:$GIT_SHA`.
+- **`MINIO_HOST`**: confirm the Tenant's real Service before the first deploy
+  with `kubectl get svc -n minio-operator`. The default assumes `minio` on port
+  80; if it does not match, patch `ragflow-config`.

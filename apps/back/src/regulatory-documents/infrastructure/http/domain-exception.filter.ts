@@ -11,14 +11,15 @@ import type { Response } from 'express';
 import { DocumentIngestionFailedError } from '../../domain/errors/document-ingestion-failed.error';
 
 /**
- * Única frontera donde un error de dominio se convierte en código HTTP.
+ * The only border where a domain error becomes an HTTP code.
  *
- * Vive en infraestructura por diseño: el núcleo lanza errores con nombre
- * (`DocumentIngestionFailedError`), no `HttpException`. Si mañana el mismo caso
- * de uso se expone por gRPC o por una cola, se escribe otro traductor y el
- * dominio no cambia.
+ * It lives in infrastructure by design: the core throws named errors
+ * (`DocumentIngestionFailedError`), not `HttpException`. If tomorrow the same
+ * use case is exposed over gRPC or through a queue, another translator gets
+ * written and the domain does not change.
  *
- * Un `HttpException` (los que arma Nest: validación, tamaño…) pasa de largo.
+ * An `HttpException` (the ones Nest builds: validation, size…) goes straight
+ * through.
  */
 @Catch()
 export class DomainExceptionFilter implements ExceptionFilter {
@@ -33,7 +34,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof DocumentIngestionFailedError) {
-      // 502: el fallo es de un servicio aguas abajo, no del request del oficial.
+      // 502: the failure belongs to a downstream service, not to the officer's
+      // request.
       this.logger.error(exception.message, exception.stack);
       response.status(HttpStatus.BAD_GATEWAY).json({
         statusCode: HttpStatus.BAD_GATEWAY,
@@ -44,14 +46,14 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
 
     this.logger.error(
-      'Error no contemplado',
+      'Unhandled error',
       exception instanceof Error ? exception.stack : String(exception),
     );
 
-    // Sin detalles hacia afuera: lo que pasó está en el log.
+    // No details on the way out: what happened is in the log.
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Error interno',
+      message: 'Internal error',
       error: 'Internal Server Error',
     });
   }

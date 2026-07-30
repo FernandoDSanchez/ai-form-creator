@@ -3,14 +3,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { DocumentProcessingLauncher } from '../../domain/ports/document-processing-launcher.port';
 
 /**
- * Adaptador provisorio del puerto `DocumentProcessingLauncher`.
+ * Provisional adapter of the `DocumentProcessingLauncher` port.
  *
- * La capa de Temporal todavía no existe: por ahora sólo registra que el
- * documento quedó listo para procesarse. El documento queda en PENDING, que es
- * exactamente lo que significa ese estado, así que nada miente.
+ * The Temporal layer does not exist yet: for now it only records that the
+ * document is ready to be processed. The document stays in PENDING, which is
+ * exactly what that status means, so nothing lies.
  *
- * Cuando se agregue Temporal, este archivo se reemplaza por un
- * `TemporalDocumentProcessingLauncher` que haga
+ * Once Temporal is added, this file is replaced by a
+ * `TemporalDocumentProcessingLauncher` doing
  *
  *   await client.workflow.start('ProcessRagDoc', {
  *     args: [regulatoryDocumentId],
@@ -18,8 +18,8 @@ import type { DocumentProcessingLauncher } from '../../domain/ports/document-pro
  *     workflowId: `process-rag-doc-${regulatoryDocumentId}`,
  *   });
  *
- * y se cambia una línea en `regulatory-documents.module.ts`. Ni el caso de uso
- * ni el controlador se enteran.
+ * and one line changes in `regulatory-documents.module.ts`. Neither the use
+ * case nor the controller find out.
  */
 @Injectable()
 export class DeferredDocumentProcessingLauncher implements DocumentProcessingLauncher {
@@ -27,8 +27,8 @@ export class DeferredDocumentProcessingLauncher implements DocumentProcessingLau
 
   launch(regulatoryDocumentId: string): Promise<void> {
     this.logger.warn(
-      `Documento ${regulatoryDocumentId} en PENDING: no hay workflow de ` +
-        'procesamiento conectado todavía (capa de Temporal pendiente).',
+      `Document ${regulatoryDocumentId} in PENDING: no processing workflow ` +
+        'is wired up yet (Temporal layer pending).',
     );
 
     return Promise.resolve();

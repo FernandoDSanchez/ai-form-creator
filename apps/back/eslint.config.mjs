@@ -12,9 +12,9 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.join(rootDir, 'src');
 
 /**
- * Los contextos acotados se descubren en disco: cualquier carpeta de `src/`
- * que tenga un `domain/` adentro. Agregar un contexto nuevo queda protegido
- * sin tocar este archivo (mismo criterio que el `eslint.config.js` del front).
+ * Bounded contexts are discovered on disk: any folder of `src/` with a
+ * `domain/` inside it. Adding a new context is protected without touching this
+ * file (same criterion as the front's `eslint.config.js`).
  */
 const contextNames = fs.existsSync(srcDir)
   ? fs
@@ -28,47 +28,47 @@ const contextNames = fs.existsSync(srcDir)
   : [];
 
 /**
- * Arquitectura hexagonal: las dependencias apuntan HACIA ADENTRO.
+ * Hexagonal architecture: dependencies point INWARDS.
  *
  *   infrastructure → application → domain
  *
- * El dominio no conoce a nadie; la aplicación conoce sólo al dominio; la
- * infraestructura conoce a los dos. Al revés, nunca.
+ * The domain knows nobody; the application knows only the domain; the
+ * infrastructure knows both. Never the other way around.
  */
 const hexagonalZones = contextNames.flatMap((context) => [
   {
     target: `./src/${context}/domain`,
     from: [`./src/${context}/application`, `./src/${context}/infrastructure`],
     message:
-      'El dominio no puede depender de la aplicación ni de la infraestructura. ' +
-      'Si necesitás algo de afuera, declaralo como puerto en `domain/ports/`.',
+      'The domain cannot depend on the application or the infrastructure. ' +
+      'If you need something from outside, declare it as a port in `domain/ports/`.',
   },
   {
     target: `./src/${context}/application`,
     from: [`./src/${context}/infrastructure`],
     message:
-      'La aplicación depende de puertos, no de adaptadores. El cableado ' +
-      'concreto va en el módulo de Nest.',
+      'The application depends on ports, not on adapters. The concrete wiring ' +
+      'goes in the Nest module.',
   },
   {
-    // Ningún contexto puede meter mano en otro: se hablan por su capa pública.
+    // No context may reach into another: they talk through their public layer.
     target: `./src/${context}`,
     from: './src',
     except: [`./${context}`, './shared', './config'],
     message:
-      'No se permiten imports entre contextos acotados. Compón en la capa de aplicación.',
+      'Imports between bounded contexts are not allowed. Compose in the application layer.',
   },
   {
-    // `shared/` es infraestructura genérica: no puede depender de un contexto.
+    // `shared/` is generic infrastructure: it cannot depend on a context.
     target: './src/shared',
     from: `./src/${context}`,
-    message: '`shared/` no puede depender de un contexto acotado.',
+    message: '`shared/` cannot depend on a bounded context.',
   },
 ]);
 
 /**
- * Complemento por patrón de import: `no-restricted-paths` cubre rutas del
- * proyecto, esto cubre paquetes de node_modules.
+ * Complement by import pattern: `no-restricted-paths` covers project paths,
+ * this covers node_modules packages.
  */
 const frameworkPackages = {
   group: [
@@ -80,8 +80,8 @@ const frameworkPackages = {
     '@nestjs/**',
   ],
   message:
-    'El núcleo (domain/application) no conoce el framework ni el ORM. ' +
-    'Mové la dependencia a `infrastructure/`.',
+    'The core (domain/application) knows neither the framework nor the ORM. ' +
+    'Move the dependency to `infrastructure/`.',
 };
 
 export default tseslint.config(
@@ -99,8 +99,8 @@ export default tseslint.config(
     languageOptions: {
       globals: { ...globals.node, ...globals.jest },
       parserOptions: {
-        // `allowDefaultProject`: este archivo no está en el tsconfig (que sólo
-        // incluye `src/`), pero igual lo linteamos.
+        // `allowDefaultProject`: this file is not in the tsconfig (which only
+        // includes `src/`), but we lint it anyway.
         projectService: { allowDefaultProject: ['eslint.config.mjs'] },
         tsconfigRootDir: rootDir,
       },
@@ -111,7 +111,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      // --- arquitectura ---
+      // --- architecture ---
       'import-x/no-restricted-paths': ['error', { zones: hexagonalZones }],
       'import-x/no-cycle': ['error', { maxDepth: Infinity }],
       'import-x/order': [
@@ -130,7 +130,7 @@ export default tseslint.config(
         },
       ],
 
-      // --- nombrado (mismas convenciones que el front, CLAUDE.md §2) ---
+      // --- naming (same conventions as the front, CLAUDE.md §2) ---
       '@typescript-eslint/naming-convention': [
         'error',
         {
@@ -149,7 +149,7 @@ export default tseslint.config(
         },
         {
           selector: 'objectLiteralProperty',
-          format: null, // los payloads externos (RAGFlow) usan snake_case
+          format: null, // external payloads (RAGFlow) use snake_case
         },
         { selector: 'typeProperty', format: null },
         { selector: 'typeLike', format: ['PascalCase'] },
@@ -158,7 +158,7 @@ export default tseslint.config(
         { selector: 'classMethod', format: ['camelCase'] },
       ],
 
-      // --- calidad ---
+      // --- quality ---
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -169,11 +169,11 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
-      'no-console': 'error', // usar el Logger de Nest
+      'no-console': 'error', // use the Nest Logger
     },
   },
 
-  // El núcleo no toca el framework.
+  // The core does not touch the framework.
   {
     files: ['src/*/domain/**/*.ts', 'src/*/application/**/*.ts'],
     rules: {
@@ -181,7 +181,7 @@ export default tseslint.config(
     },
   },
 
-  // Los tests sí pueden ser laxos con los tipos: los dobles mienten a propósito.
+  // Tests may be lax with types: the doubles lie on purpose.
   {
     files: ['**/__tests__/**/*.ts', '**/*.spec.ts'],
     rules: {
@@ -193,8 +193,9 @@ export default tseslint.config(
     },
   },
 
-  // El bootstrap y la config son la raíz de composición: leen `process.env`
-  // y arman el mundo. Son la excepción, igual que `main.tsx` en el front.
+  // The bootstrap and the config are the composition root: they read
+  // `process.env` and build the world. They are the exception, just like
+  // `main.tsx` in the front.
   {
     files: ['src/main.ts', 'src/config/**/*.ts', 'eslint.config.mjs'],
     rules: {
@@ -202,8 +203,8 @@ export default tseslint.config(
     },
   },
 
-  // Los plugins de ESLint exportan default + named con el mismo nombre; la
-  // advertencia es un falso positivo del propio archivo de config.
+  // ESLint plugins export default + named under the same name; the warning is
+  // a false positive from the config file itself.
   {
     files: ['eslint.config.mjs'],
     rules: {

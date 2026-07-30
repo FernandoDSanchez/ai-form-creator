@@ -1,6 +1,6 @@
 import type { ISchema } from '@formily/react';
 
-/** Estados posibles de una plantilla (no usar los strings sueltos). */
+/** Possible statuses of a template (do not use the loose strings). */
 export const formTemplateStatuses = {
   draft: 'draft',
   published: 'published',
@@ -20,9 +20,9 @@ export type FormTemplateSummary = {
 };
 
 /**
- * `schema` es un JSON Schema de Formily: describe los campos del formulario,
- * qué componente los renderiza (`x-component`) y sus validaciones.
- * Lo produce el backend / la IA, no el frontend.
+ * `schema` is a Formily JSON Schema: it describes the form fields, which
+ * component renders them (`x-component`) and their validations.
+ * It is produced by the backend / the AI, not by the frontend.
  */
 export type FormTemplate = FormTemplateSummary & {
   schema: ISchema;

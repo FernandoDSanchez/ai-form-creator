@@ -1,32 +1,33 @@
-# 04 — Validación ✅
+# 04 — Validation ✅
 
-Ejecutado y en verde:
+Run and green:
 
-- [x] `npm run lint` — 0 errores, 0 warnings
-- [x] `npm run check-types` — 0 errores
-- [x] `npm test` — 3 tests (render desde schema, bloqueo por validación, submit)
-- [x] `npm run build` — build de producción correcto
-- [x] Generadores: `npm run generate` produce código que pasa lint y tsc
+- [x] `npm run lint` — 0 errors, 0 warnings
+- [x] `npm run check-types` — 0 errors
+- [x] `npm test` — 3 tests (render from schema, validation blocking, submit)
+- [x] `npm run build` — production build correct
+- [x] Generators: `npm run generate` produces code that passes lint and tsc
 
-Verificado en navegador (dev server + MSW):
+Verified in the browser (dev server + MSW):
 
-- [x] `/forms` lista las 3 plantillas con su badge de estado
-- [x] `/forms/onboarding-cliente` renderiza text, email, select, date y checkbox
-      desde el JSON Schema
-- [x] Validación en español: «Este campo es obligatorio», «Debe ser un correo
-      electrónico válido»; el submit se bloquea
-- [x] Envío correcto → toast «Respuesta enviada»
-- [x] `/forms/solicitud-soporte` (borrador): campos deshabilitados, aviso y
-      botón bloqueado vía `formStatusVariants`
+- [x] `/forms` lists the 3 templates with their status badge
+- [x] `/forms/customer-onboarding` renders text, email, select, date and
+      checkbox from the JSON Schema
+- [x] Validation messages: "This field is required", "It must be a valid email
+      address"; the submit is blocked
+- [x] Successful submission → "Response submitted" toast
+- [x] `/forms/support-request` (draft): fields disabled, notice shown and button
+      blocked through `formStatusVariants`
 
-Reglas de arquitectura verificadas con un archivo de prueba que las violaba
-(cross-feature import relativo y por alias, import de `app/` desde una feature,
-comparación contra string literal, clave de storage literal, `import.meta.env`
-fuera de config, número mágico, nombre de archivo PascalCase): las 8 dispararon.
+Architecture rules verified with a test file that violated them (cross-feature
+import both relative and by alias, import of `app/` from a feature, comparison
+against a string literal, literal storage key, `import.meta.env` outside config,
+magic number, PascalCase file name): all 8 fired.
 
-Bugs encontrados y corregidos durante la validación:
+Bugs found and fixed during validation:
 
-- Toasts invisibles: colisión de tokens `--spacing-sm` vs `max-w-sm` (Tailwind
-  resolvía `max-w-sm` a `0.5rem`). Solucionado con `--container-*` con nombre
-  propio; afectaba también a `max-w-2xl` en la landing.
-- Mensajes de validación de Formily en inglés → locale `es` registrado.
+- Invisible toasts: `--spacing-sm` vs `max-w-sm` token collision (Tailwind
+  resolved `max-w-sm` to `0.5rem`). Solved with `--container-*` tokens with
+  names of their own; it also affected `max-w-2xl` on the landing page.
+- Formily validation messages falling back to the library defaults → an explicit
+  locale registered.

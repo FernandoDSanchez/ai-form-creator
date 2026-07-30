@@ -1,4 +1,4 @@
-/** Endpoints de la feature. Ningún literal de URL fuera de este archivo. */
+/** Feature endpoints. No URL literal outside this file. */
 const basePath = '/{{kebabCase entity}}s';
 
 export const {{camelCase name}}Endpoints = {
@@ -6,7 +6,7 @@ export const {{camelCase name}}Endpoints = {
   {{camelCase entity}}: (id: string) => basePath + '/' + id,
 } as const;
 
-/** Claves de react-query de la feature. */
+/** react-query keys of the feature. */
 export const {{camelCase name}}QueryKeys = {
   all: ['{{kebabCase entity}}s'] as const,
   lists: () => [...{{camelCase name}}QueryKeys.all, 'list'] as const,

@@ -3,19 +3,19 @@ kind: ConfigMap
 metadata:
   name: ragflow-service-conf
 data:
-  # Cablea RAGFlow → LiteLLM. Lo único propio de este overlay es el bloque
-  # `user_default_llm` del final; todo lo de arriba es copia literal del
-  # componente vendorizado.
+  # Wires RAGFlow → LiteLLM. The only thing specific to this overlay is the
+  # `user_default_llm` block at the end; everything above is a literal copy of
+  # the vendored component.
   #
-  # POR QUÉ SE REESCRIBE LA PLANTILLA ENTERA: el valor de una clave de ConfigMap
-  # es un string opaco. Kustomize no sabe insertar "un bloque más" adentro; un
-  # patch sobre `service_conf.yaml.template` reemplaza el archivo completo. Al
-  # mover RAGFlow a la factory (o al bumpear el componente), re-diffeá:
+  # WHY THE WHOLE TEMPLATE IS REWRITTEN: the value of a ConfigMap key is an
+  # opaque string. Kustomize cannot insert "one more block" inside it; a patch
+  # over `service_conf.yaml.template` replaces the whole file. When moving
+  # RAGFlow into the factory (or bumping the component), re-diff:
   #   diff <(yq '.data["service_conf.yaml.template"]' \
   #             ../../components/apps/rag/ragflow/service-conf.yaml) \
   #        <(yq '.data["service_conf.yaml.template"]' \
   #             patches/ragflow-litellm-patch.yaml)
-  # y esperá exactamente el bloque user_default_llm como única diferencia.
+  # and expect exactly the user_default_llm block as the only difference.
   service_conf.yaml.template: |
     ragflow:
       host: ${RAGFLOW_HOST:-0.0.0.0}
@@ -48,36 +48,37 @@ data:
       password: '${REDIS_PASSWORD}'
       host: '${REDIS_HOST:-ragflow-redis}:${REDIS_PORT:-6379}'
     # --- LiteLLM ------------------------------------------------------------
-    # RAGFlow no habla con Anthropic/OpenAI/Gemini: habla con el proxy, que
-    # expone la API de OpenAI. Así las keys de proveedor viven sólo en
-    # litellm-secret y cambiar de modelo es cambiar un nombre acá.
+    # RAGFlow does not talk to Anthropic/OpenAI/Gemini: it talks to the proxy,
+    # which exposes the OpenAI API. That way the provider keys live only in
+    # litellm-secret and switching models is changing a name here.
     #
-    # OJO AL EDITAR: el entrypoint pasa cada línea de esta plantilla por
-    # 'eval echo', también los comentarios. Nada de backticks, comillas dobles,
-    # backslash ni signo peso que no sea una variable a expandir: la shell los
-    # reevalúa y rompe el arranque.
+    # MIND WHEN EDITING: the entrypoint passes every line of this template
+    # through 'eval echo', comments included. No backticks, no double quotes, no
+    # backslash and no dollar sign that is not a variable to expand: the shell
+    # re-evaluates them and breaks the startup.
     #
-    # factory: 'OpenAI-API-Compatible' es el nombre exacto que RAGFlow busca en
-    # conf/llm_factories.json. Tiene que matchear tal cual.
+    # factory: 'OpenAI-API-Compatible' is the exact name RAGFlow looks for in
+    # conf/llm_factories.json. It has to match verbatim.
     #
-    # name: es la ruta de LiteLLM -- proveedor/modelo -- la que matchean los
-    # wildcards de configs/litellm-config.yaml. Hoy apunta a Gemini porque es el
-    # único proveedor con key cargada en litellm.env; para mover el default a
-    # Claude alcanza con anthropic/claude-sonnet-4-5 más su ANTHROPIC_API_KEY.
+    # name: is the LiteLLM route -- provider/model -- the one matched by the
+    # wildcards in configs/litellm-config.yaml. Today it points at Gemini
+    # because it is the only provider with a key loaded in litellm.env; to move
+    # the default to Claude, anthropic/claude-sonnet-4-5 plus its
+    # ANTHROPIC_API_KEY is enough.
     #
-    # base_url SIN barra final, a propósito: el cliente de chat lo usa tal cual
-    # y el de embeddings le hace urljoin con 'v1' -- con /v1/ terminaría
-    # pegándole a /v1/v1.
+    # base_url WITHOUT a trailing slash, on purpose: the chat client uses it
+    # as-is and the embeddings one urljoins 'v1' onto it -- with /v1/ it would
+    # end up hitting /v1/v1.
     #
-    # api_key sale de ragflow-secret vía envFrom: el entrypoint expande esta
-    # plantilla contra el entorno del proceso. Vacía, RAGFlow arranca igual y el
-    # modelo falla recién al invocarlo.
+    # api_key comes from ragflow-secret through envFrom: the entrypoint expands
+    # this template against the process environment. Empty, RAGFlow starts all
+    # the same and the model only fails when invoked.
     user_default_llm:
       factory: 'OpenAI-API-Compatible'
       api_key: '${LITELLM_API_KEY}'
       base_url: 'http://litellm:4000/v1'
       default_models:
         chat_model:
-          name: 'gemini/gemini-2.5-flash'
+          name: 'gemini/gemini-flash-latest'
         embedding_model:
           name: 'gemini/gemini-embedding-001'

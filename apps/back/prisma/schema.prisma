@@ -1,9 +1,14 @@
-// Esquema de la base de la app (Service `app-postgres` del namespace).
+// Schema of the app database (the namespace's `app-postgres` Service).
 //
-// Prisma vive en la capa de infraestructura: el modelo de acá NO es el modelo
-// de dominio. `src/regulatory-documents/domain/regulatory-document.ts` define la
-// entidad y `infrastructure/persistence/regulatory-document.mapper.ts` traduce
-// entre ambos. Cambiar una columna no debe obligar a tocar el dominio.
+// Prisma lives in the infrastructure layer: the model here is NOT the domain
+// model. The entity is defined in `@ai-form-creator/contracts` (the same
+// contract the front consumes), `src/regulatory-documents/domain/regulatory-document.ts`
+// exposes it to the core and `infrastructure/persistence/regulatory-document.mapper.ts`
+// translates between the two. Changing a column must not force touching the
+// domain.
+//
+// The `DateTime`s here become ISO 8601 strings in the mapper: the entity
+// crosses over as JSON and does not handle `Date`.
 
 generator client {
   provider = "prisma-client-js"
@@ -14,9 +19,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// Estado del pipeline de ingesta. Nace en PENDING cuando el archivo ya está
-/// en RAGFlow pero todavía nadie lo procesó; el workflow de Temporal (futuro)
-/// será el único que lo mueva de ahí.
+/// Status of the ingestion pipeline. It is born as PENDING when the file is
+/// already in RAGFlow but nobody has processed it yet; the (future) Temporal
+/// workflow will be the only one moving it from there.
 enum RegulatoryDocumentStatus {
   PENDING
   PROCESSING
@@ -24,16 +29,72 @@ enum RegulatoryDocumentStatus {
   FAILED
 }
 
+/// Status of the generation pipeline. The back writes it when accepting the
+/// request (PENDING) and from then on the Temporal worker moves it. Every
+/// change fires a `pg_notify` (see the `..._form_generation` migration), which
+/// is how the back finds out without polling.
+///
+/// The literals are the same as `formGenerationStatuses` in
+/// `packages/contracts`. There is no automatic check that they match: what ties
+/// them together is the persistence mapper, where TypeScript compares Prisma's
+/// enum against the contract type.
+enum FormGenerationStatus {
+  PENDING
+  RETRIEVING
+  GENERATING
+  VALIDATING
+  REPAIRING
+  AWAITING_REVIEW
+  APPROVED
+  REJECTED
+  FAILED
+}
+
+model FormGeneration {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// The natural language request, exactly as the person wrote it.
+  prompt String
+
+  /// Chosen documents, by our own id.
+  ///
+  /// An array of UUIDs and not a join table on purpose: this is the snapshot of
+  /// the request, not a live relation. If a document is deleted tomorrow, what
+  /// was generated has to remain explainable with what existed that day — and a
+  /// FK with ON DELETE CASCADE would take exactly that evidence away.
+  regulatoryDocumentIds String[] @map("regulatory_document_ids") @db.Uuid
+
+  status   FormGenerationStatus @default(PENDING)
+  /// How many times the form was asked of the model, retries included.
+  attempts Int                  @default(0)
+
+  /// Model output already validated against `generatedFormSchema`.
+  draft Json?
+
+  /// The draft compiled into Formily JSON. This is what the front renders.
+  formilySchema Json? @map("formily_schema")
+
+  failureReason String?   @map("failure_reason")
+  reviewerNote  String?   @map("reviewer_note")
+  reviewedAt    DateTime? @map("reviewed_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@map("form_generations")
+}
+
 model RegulatoryDocument {
   id String @id @default(uuid()) @db.Uuid
 
-  /// `id` que devuelve RAGFlow al subir el archivo. Es la clave con la que se
-  /// consulta el estado del parseo y los chunks. Único: un archivo subido dos
-  /// veces genera dos documentos distintos en RAGFlow, así que un choque acá
-  /// significaría un bug nuestro, no un duplicado legítimo del usuario.
+  /// The `id` RAGFlow returns when uploading the file. It is the key used to
+  /// query the parsing status and the chunks. Unique: a file uploaded twice
+  /// produces two different documents in RAGFlow, so a clash here would mean a
+  /// bug of ours, not a legitimate duplicate from the user.
   ragflowDocumentId String @unique @map("ragflow_document_id")
 
-  /// Dataset (knowledge base) de RAGFlow donde quedó el archivo.
+  /// RAGFlow dataset (knowledge base) where the file ended up.
   ragflowDatasetId String @map("ragflow_dataset_id")
 
   fileName  String                   @map("file_name")

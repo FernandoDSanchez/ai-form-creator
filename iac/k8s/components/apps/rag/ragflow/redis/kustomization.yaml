@@ -13,9 +13,9 @@ kind: Kustomization
 # drops whatever parse tasks were still queued. Documents already ingested are
 # safe — they live in MinIO and Elasticsearch. To make the queue durable, patch
 # the volume to a PVC from the overlay.
-# Redis SÍ existe en la factory, así que no lo vendorizamos: lo tomamos remoto
-# y seguimos recibiendo sus fixes. Los componentes vecinos (mysql,
-# elasticsearch) sí están vendorizados porque todavía no existen upstream.
+# Redis DOES exist in the factory, so we do not vendor it: we take it remotely
+# and keep receiving its fixes. The neighbouring components (mysql,
+# elasticsearch) are vendored because they do not exist upstream yet.
 resources:
   - https://github.com/AItizate/forjate.git//k8s/components/apps/databases/redis?ref=7ac17e6a07446969b2b12004f694e09aa134642e
 

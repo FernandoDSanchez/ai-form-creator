@@ -1,7 +1,7 @@
 /**
- * Configuración compartida entre el build tooling (vite.config.ts) y la app.
- * Vive fuera de `env.ts` porque debe ser importable desde Node, donde
- * `import.meta.env` no existe.
+ * Configuration shared between the build tooling (vite.config.ts) and the app.
+ * It lives outside `env.ts` because it has to be importable from Node, where
+ * `import.meta.env` does not exist.
  */
 export const DEV_SERVER_PORT = 3000;
 

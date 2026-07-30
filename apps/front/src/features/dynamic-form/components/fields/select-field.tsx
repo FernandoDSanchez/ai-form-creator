@@ -20,7 +20,7 @@ type SelectProps = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'value'> & {
 const Select = ({
   value,
   options = [],
-  placeholder = 'Selecciona una opción',
+  placeholder = 'Select an option',
   invalid,
   className,
   ...props
@@ -42,8 +42,9 @@ const Select = ({
 );
 
 /**
- * `mapProps({ dataSource: 'options' })` toma el `enum` del JSON Schema
- * (Formily lo expone como `field.dataSource`) y lo pasa como prop `options`.
+ * `mapProps({ dataSource: 'options' })` takes the `enum` from the JSON Schema
+ * (Formily exposes it as `field.dataSource`) and passes it as the `options`
+ * prop.
  */
 export const SelectField = connect(
   Select,

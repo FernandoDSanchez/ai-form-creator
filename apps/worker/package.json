@@ -1,0 +1,85 @@
+{
+  "name": "@ai-form-creator/worker",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Temporal worker — orchestrates AI form generation",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "tsc",
+    "start": "node dist/worker.js",
+    "dev": "ts-node src/worker.ts",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\"",
+    "check-types": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "contracts:build": "npm --prefix ../../packages/contracts install && npm --prefix ../../packages/contracts run build"
+  },
+  "dependencies": {
+    "@ai-form-creator/contracts": "file:../../packages/contracts",
+    "@sinclair/typebox": "^0.34.52",
+    "@temporalio/activity": "^1.14.1",
+    "@temporalio/worker": "^1.14.1",
+    "@temporalio/workflow": "^1.14.1",
+    "dotenv": "^17.2.2",
+    "pg": "^8.16.3",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@temporalio/testing": "^1.21.1",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.13.2",
+    "@types/pg": "^8.15.6",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-import-resolver-typescript": "^4.4.5",
+    "eslint-plugin-import-x": "^4.17.1",
+    "eslint-plugin-prettier": "^5.5.6",
+    "globals": "^17.8.0",
+    "jest": "^30.2.0",
+    "lint-staged": "^17.2.0",
+    "prettier": "^3.9.6",
+    "rimraf": "^6.0.1",
+    "ts-jest": "^29.4.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.65.0"
+  },
+  "lint-staged": {
+    "*.ts": [
+      "eslint --max-warnings 0 --fix",
+      "prettier --write"
+    ],
+    "*.{js,cjs,mjs,json,md}": [
+      "prettier --write"
+    ]
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "transformIgnorePatterns": [
+      "/node_modules/",
+      "/packages/[^/]+/dist/"
+    ],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
+    "coverageDirectory": "../coverage",
+    "testEnvironment": "node"
+  }
+}

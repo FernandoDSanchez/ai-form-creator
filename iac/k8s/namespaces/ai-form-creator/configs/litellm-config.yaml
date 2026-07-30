@@ -12,6 +12,6 @@ model_list:
       model: gemini/*
       api_key: os.environ/GEMINI_API_KEY
 
-# RAGFlow y el backend hablan con LiteLLM, no con los proveedores. Eso deja
-# todas las credenciales de modelos en un solo Secret (litellm-secret) y
-# permite cambiar de proveedor sin tocar las apps.
+# RAGFlow and the backend talk to LiteLLM, not to the providers. That keeps all
+# the model credentials in a single Secret (litellm-secret) and allows switching
+# providers without touching the apps.

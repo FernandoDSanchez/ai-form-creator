@@ -15,8 +15,8 @@ import { cn } from '@/utils/cn';
 import { useNotifications, type Notification } from './notifications-store';
 
 /**
- * Variant Mapping: cada variante declara su icono y sus clases (tokens).
- * Añadir una variante nueva = añadir una entrada aquí.
+ * Variant Mapping: every variant declares its icon and its classes (tokens).
+ * Adding a new variant = adding an entry here.
  */
 const notificationStyles: Record<
   NotificationVariant,
@@ -87,7 +87,7 @@ const NotificationToast = ({
       </div>
       <button
         type="button"
-        aria-label="Cerrar notificación"
+        aria-label="Dismiss notification"
         onClick={() => onDismiss(notification.id)}
         className="text-content-muted hover:text-content"
       >

@@ -1,13 +1,13 @@
-# 02 — Diseño ✅
+# 02 — Design ✅
 
-- [x] Design tokens en `@theme` (`src/styles/index.css`): color de marca,
-      colores semánticos (surface/content/border/estados), spacing, radios,
-      sombras, tipografía, duraciones
-- [x] Tokens de contenedor con nombre propio (`--container-page/prose/toast`)
-      para evitar la colisión `--spacing-*` vs `max-w-*`
-- [x] Puente TS → tokens: `src/config/design-tokens.ts` (referencias `var(--x)`)
-- [x] Variant mapping con CVA: `Button`, `Spinner`, `controlVariants`
-- [x] Variant mapping de datos: `notificationStyles`, `formStatusVariants`
-- [x] Layouts: `AppLayout`, `ContentLayout`; error boundary y toasts
+- [x] Design tokens in `@theme` (`src/styles/index.css`): brand colour,
+      semantic colours (surface/content/border/states), spacing, radii,
+      shadows, typography, durations
+- [x] Container tokens with names of their own (`--container-page/prose/toast`)
+      to avoid the `--spacing-*` vs `max-w-*` collision
+- [x] TS → tokens bridge: `src/config/design-tokens.ts` (`var(--x)` references)
+- [x] Variant mapping with CVA: `Button`, `Spinner`, `controlVariants`
+- [x] Data variant mapping: `notificationStyles`, `formStatusVariants`
+- [x] Layouts: `AppLayout`, `ContentLayout`; error boundary and toasts
 
-Pendiente (ver HUMAN-TASK): modo oscuro, webfont Inter, branding.
+Pending (see HUMAN-TASK): dark mode, Inter webfont, branding.

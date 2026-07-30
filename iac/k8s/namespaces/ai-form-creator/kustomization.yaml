@@ -3,60 +3,64 @@ kind: Kustomization
 
 namespace: ai-form-creator
 
-# Todo ai-form-creator en un namespace propio: front + back + su Postgres,
-# Temporal, LiteLLM y el stack de RAGFlow.
+# All of ai-form-creator in a namespace of its own: front + back + its
+# Postgres, Temporal, LiteLLM and the RAGFlow stack.
 #
-# POR QUÉ UN SOLO NAMESPACE: este cluster está compartido con otro proyecto que
-# ya instaló la base de forjate (los namespaces cert-manager, security, traefik,
-# ai-tools y minio-operator son suyos). Un namespace propio nos despega de esa
-# base: no compartimos `ai-tools` con nadie y el borrado es de un tirón —
+# WHY A SINGLE NAMESPACE: this cluster is shared with another project that
+# already installed the forjate base (the cert-manager, security, traefik,
+# ai-tools and minio-operator namespaces are theirs). A namespace of our own
+# detaches us from that base: we share `ai-tools` with nobody and deleting is
+# one command —
 #   kubectl delete ns ai-form-creator
 #
-# LO QUE CUESTA: los dos Postgres (el nuestro y el de temporal-stack) salen del
-# mismo componente genérico y colisionan en el mismo namespace. Por eso el
-# nuestro va envuelto en ./app-postgres con namePrefix. Ver ese archivo.
+# WHAT IT COSTS: the two Postgres instances (ours and temporal-stack's) come
+# from the same generic component and collide in the same namespace. That is
+# why ours is wrapped in ./app-postgres with a namePrefix. See that file.
 #
-# Cableado interno — al estar todos acá, alcanzan los nombres cortos:
-#   app-postgres:5432     Postgres de la app
-#   temporal-server:7233  frontend de Temporal
-#   litellm:4000          proxy de modelos (sin Ingress, sólo interno)
-#   ragflow / ragflow:9380  UI y API de RAGFlow
+# Internal wiring — with everybody in here, short names are enough:
+#   app-postgres:5432       the app's Postgres
+#   temporal-server:7233    Temporal frontend
+#   litellm:4000            model proxy (no Ingress, internal only)
+#   ragflow / ragflow:9380  RAGFlow UI and API
 #
-# MinIO NO está acá: RAGFlow usa el Tenant que instancia la raíz, en el
-# namespace minio-operator. Confirmá el nombre del Service antes de desplegar:
+# MinIO is NOT here: RAGFlow uses the Tenant instantiated by the root, in the
+# minio-operator namespace. Confirm the Service name before deploying:
 #   kubectl get svc -n minio-operator
-# y si no es `minio` en el puerto 80, parcheá MINIO_HOST/MINIO_PORT.
+# and if it is not `minio` on port 80, patch MINIO_HOST/MINIO_PORT.
 
 resources:
   - namespace.yaml
 
-  # --- app propia ---
+  # --- our own app ---
   - ./app-postgres
   - front-deployment.yaml
   - front-service.yaml
   - back-deployment.yaml
   - back-service.yaml
+  # No Service: the worker listens to nothing. It talks to Temporal over
+  # outbound gRPC and takes work from the queue.
+  - worker-deployment.yaml
   - ingress.yaml
 
-  # --- LiteLLM + su Postgres (remoto) ---
-  # Su Postgres es opt-in. Lo incluimos porque queremos virtual keys y spend
-  # tracking; si sólo vas a proxear modelos desde el config file, borrá la
-  # segunda línea y DATABASE_URL de litellm.env.
+  # --- LiteLLM + its Postgres (remote) ---
+  # Its Postgres is opt-in. We include it because we want virtual keys and
+  # spend tracking; if you are only going to proxy models from the config file,
+  # delete the second line and DATABASE_URL from litellm.env.
   - https://github.com/AItizate/forjate.git//k8s/components/apps/ai-models/litellm?ref=7ac17e6a07446969b2b12004f694e09aa134642e
   - https://github.com/AItizate/forjate.git//k8s/components/apps/ai-models/litellm/postgres?ref=7ac17e6a07446969b2b12004f694e09aa134642e
 
-  # --- Temporal server + UI + su Postgres (remoto) ---
-  # La imagen auto-setup crea las bases `temporal` y `temporal_visibility` sola
-  # en el primer arranque, con las credenciales de postgres-secret.
+  # --- Temporal server + UI + its Postgres (remote) ---
+  # The auto-setup image creates the `temporal` and `temporal_visibility`
+  # databases on its own at first boot, with the postgres-secret credentials.
   - https://github.com/AItizate/forjate.git//k8s/components/bundles/temporal-stack?ref=7ac17e6a07446969b2b12004f694e09aa134642e
 
-  # --- RAGFlow + MySQL/Redis/Elasticsearch (vendorizado) ---
-  # Vive en ../../components porque todavía no existe en la factory. Cuando
-  # entre upstream, esto se reemplaza por una referencia remota y se borra el
-  # directorio local:
-  #   - https://github.com/AItizate/forjate.git//k8s/components/bundles/ragflow-stack?ref=<nuevo>
-  # Por eso NO edites los componentes vendorizados: los ajustes van como patch
-  # acá abajo, así la migración es borrar + cambiar la ref.
+  # --- RAGFlow + MySQL/Redis/Elasticsearch (vendored) ---
+  # It lives in ../../components because it does not exist in the factory yet.
+  # Once it lands upstream, this is replaced by a remote reference and the local
+  # directory is deleted:
+  #   - https://github.com/AItizate/forjate.git//k8s/components/bundles/ragflow-stack?ref=<new>
+  # That is why you should NOT edit the vendored components: adjustments go as
+  # patches down below, so the migration is delete + change the ref.
   - ../../components/apps/rag/ragflow
   - ../../components/apps/rag/ragflow/mysql
   - ../../components/apps/rag/ragflow/redis
@@ -71,13 +75,48 @@ configMapGenerator:
       - LITELLM_BASE_URL=http://litellm:4000
       - RAGFLOW_BASE_URL=http://ragflow
       - RAGFLOW_API_URL=http://ragflow:9380
-      # HUMANO: id del dataset (knowledge base) de RAGFlow donde aterrizan los
-      # documentos regulatorios. No es secreto (es un id), por eso va en el
-      # ConfigMap y no en back.env. Se obtiene con:
+      # HUMAN: id of the RAGFlow dataset (knowledge base) where regulatory
+      # documents land. It is not a secret (it is an id), which is why it goes
+      # in the ConfigMap and not in back.env. Get it with:
       #   curl -H "Authorization: Bearer $RAGFLOW_API_KEY" \
       #        http://ragflow:9380/api/v1/datasets
       #
-      # Dataset `Aduana`.
+      # Dataset `Aduana` (Customs).
+      - RAGFLOW_DATASET_ID=910c513689ef11f185a34559384ef010
+      - TEMPORAL_NAMESPACE=default
+    options:
+      disableNameSuffixHash: true
+  - name: worker-config
+    literals:
+      - NODE_ENV=production
+      - TEMPORAL_ADDRESS=temporal-server:7233
+      - TEMPORAL_NAMESPACE=default
+      - LITELLM_BASE_URL=http://litellm:4000
+      # Model with the provider prefix LiteLLM expects. It goes here and not
+      # in the code: switching models should not be an image deployment. It has
+      # to be registered in `configs/litellm-config.yaml`.
+      #
+      # WATCH OUT for withdrawn models. We started here with
+      # `gemini/gemini-2.5-flash` and Google answered with a 404: "no longer
+      # available to new users". It still **shows up** in `listModels`, so the
+      # list is not enough to verify it — a real call has to be made. If this
+      # fails with a 404, try candidates with:
+      #
+      #   kubectl -n ai-form-creator exec deploy/worker -- node -e "fetch(
+      #     process.env.LITELLM_BASE_URL+'/v1/chat/completions',{method:'POST',
+      #     headers:{'Content-Type':'application/json',Authorization:'Bearer '+
+      #     process.env.LITELLM_API_KEY},body:JSON.stringify({model:'gemini/<X>',
+      #     messages:[{role:'user',content:'hi'}]})}).then(r=>r.text()).then(console.log)"
+      #
+      # That is why we use the `gemini-flash-latest` alias, which does not
+      # expire: the price is that the model underneath changes without notice,
+      # and we pay it happily because a 404 leaves the generation dead and here
+      # every result is reviewed by a person before being published.
+      - LITELLM_MODEL=gemini/gemini-flash-latest
+      - RAGFLOW_API_URL=http://ragflow:9380
+      # The same dataset as the back: it is where the documents land. The
+      # worker uses the dataset each document carries in the workflow argument
+      # anyway; this is the fallback.
       - RAGFLOW_DATASET_ID=910c513689ef11f185a34559384ef010
     options:
       disableNameSuffixHash: true
@@ -87,8 +126,8 @@ configMapGenerator:
     behavior: replace
 
 secretGenerator:
-  # El nombre `postgres-secret` lo fija el bundle temporal-stack: es el que
-  # referencian el StatefulSet de su Postgres y el server de Temporal.
+  # The `postgres-secret` name is fixed by the temporal-stack bundle: it is the
+  # one referenced by its Postgres StatefulSet and by the Temporal server.
   - name: postgres-secret
     envs:
       - secrets/temporal-postgres.env
@@ -102,6 +141,11 @@ secretGenerator:
   - name: back-secret
     envs:
       - secrets/back.env
+    options:
+      disableNameSuffixHash: true
+  - name: worker-secret
+    envs:
+      - secrets/worker.env
     options:
       disableNameSuffixHash: true
   - name: litellm-secret
@@ -121,12 +165,12 @@ secretGenerator:
       disableNameSuffixHash: true
 
 patches:
-  # El componente de LiteLLM ya trae su Postgres renombrado a litellm-postgres,
-  # pero —igual que todos los wrappers de namePrefix— deja la label `app:
-  # postgres` sin tocar. En namespaces separados daba igual; acá conviven tres
-  # Postgres y los Services se robarían los pods entre sí: el Service
-  # `postgres` de Temporal matchearía también al pod de LiteLLM. Se le renombra
-  # la label de los dos lados.
+  # The LiteLLM component already renames its Postgres to litellm-postgres,
+  # but — like every namePrefix wrapper — it leaves the `app: postgres` label
+  # untouched. In separate namespaces that did not matter; here three Postgres
+  # instances coexist and the Services would steal each other's pods:
+  # Temporal's `postgres` Service would also match the LiteLLM pod. The label
+  # is renamed on both sides.
   - target:
       kind: StatefulSet
       name: litellm-postgres
@@ -149,7 +193,7 @@ patches:
     target:
       kind: Ingress
       name: ragflow-ingress
-  # RAGFlow → LiteLLM: añade user_default_llm a la plantilla de service_conf.
+  # RAGFlow → LiteLLM: adds user_default_llm to the service_conf template.
   - path: patches/ragflow-litellm-patch.yaml
     target:
       kind: ConfigMap
@@ -159,28 +203,38 @@ patches:
       kind: Ingress
       name: temporal-ui-ingress
 
-# Las dos imágenes se construyen local y se importan a mano al containerd de
-# k3s: no hay registry del que bajarlas. Por eso NO se les reescribe el nombre
-# —el del manifiesto tiene que ser idéntico al del import— y los Deployments
-# usan imagePullPolicy: IfNotPresent; sin eso el kubelet intentaría bajarlas de
-# docker.io y fallaría.
+# The images are built locally and imported by hand into the k3s containerd:
+# there is no registry to pull them from. That is why their name is NOT
+# rewritten — the one in the manifest has to be identical to the one imported —
+# and the Deployments use imagePullPolicy: IfNotPresent; without that the
+# kubelet would try to pull them from docker.io and fail.
 #
-#   docker build -t ai-form-creator/back:dev apps/back
+#   docker build -t ai-form-creator/back:dev -f apps/back/Dockerfile .
 #   docker save ai-form-creator/back:dev | sudo k3s ctr images import -
 #
-# El front además necesita las VITE_APP_* como --build-arg: Vite las hornea en
-# el bundle, no se leen en runtime. El comando completo está en iac/README.md.
+# The back is built from the repo root, not from apps/back: it depends on
+# packages/contracts through `file:` and needs that directory in the context.
 #
-# OJO con las mayúsculas si algún día esto va a un registry: el placeholder
-# original era `ghcr.io/OWNER/...`, y `OWNER` en mayúscula es una referencia
-# OCI inválida — el pod queda en InvalidImageName sin ni siquiera intentar el
-# pull. Todo en minúscula.
+# The front also needs the VITE_APP_* as --build-arg: Vite bakes them into the
+# bundle, they are not read at runtime. The full command is in iac/README.md.
 #
-# CI reemplaza el tag:
+# WATCH OUT for capitals if this ever goes to a registry: the original
+# placeholder was `ghcr.io/OWNER/...`, and `OWNER` in upper case is an invalid
+# OCI reference — the pod ends up in InvalidImageName without even attempting
+# the pull. All lower case.
+#
+# CI replaces the tag:
 #   kustomize edit set image ai-form-creator/back=$REGISTRY/back:$GIT_SHA
 images:
   - name: ai-form-creator/front
     newTag: dev
 
   - name: ai-form-creator/back
+    newTag: dev
+
+  # WATCH OUT: the worker is NOT built on Alpine like the other two. The
+  # Temporal SDK carries its core in Rust as a native binary and only publishes
+  # prebuilds for glibc; on musl the image builds fine and blows up at startup.
+  # The detail is in `apps/worker/Dockerfile`.
+  - name: ai-form-creator/worker
     newTag: dev

@@ -3,11 +3,16 @@ import type { RegulatoryDocument as RegulatoryDocumentRow } from '@prisma/client
 import type { RegulatoryDocument } from '../../domain/regulatory-document';
 
 /**
- * Fila de Postgres → entidad de dominio.
+ * Postgres row → domain entity.
  *
- * Parece redundante hoy (los campos coinciden uno a uno) y sin embargo es lo
- * que evita que `@prisma/client` se filtre al núcleo: el día que la tabla gane
- * una columna de auditoría o se parta en dos, el cambio muere acá.
+ * Keeps `@prisma/client` from leaking into the core: the day the table gains an
+ * audit column or gets split in two, the change dies here.
+ *
+ * It is also the only place where `DateTime` becomes an ISO 8601 string. The
+ * entity is the contract shared with the front
+ * (`@ai-form-creator/contracts`) and what travels over the wire is JSON, so the
+ * conversion happens exactly once, at the persistence edge, and not in every
+ * adapter that serialises the entity.
  */
 export const toRegulatoryDocument = (
   row: RegulatoryDocumentRow,
@@ -18,10 +23,10 @@ export const toRegulatoryDocument = (
   fileName: row.fileName,
   mimeType: row.mimeType,
   sizeBytes: row.sizeBytes,
-  // El enum de Prisma y `regulatoryDocumentStatuses` comparten literales, así
-  // que TypeScript acepta la asignación directa. Si divergieran, el error
-  // saltaría acá — que es justamente donde queremos enterarnos.
+  // Prisma's enum and `regulatoryDocumentStatuses` share their literals, so
+  // TypeScript accepts the direct assignment. If they diverged, the error would
+  // surface here — which is exactly where we want to find out.
   status: row.status,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
+  createdAt: row.createdAt.toISOString(),
+  updatedAt: row.updatedAt.toISOString(),
 });

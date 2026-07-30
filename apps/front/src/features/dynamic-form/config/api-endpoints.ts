@@ -1,4 +1,4 @@
-/** Endpoints de la feature. Ningún literal de URL fuera de este archivo. */
+/** Feature endpoints. No URL literal outside this file. */
 export const dynamicFormEndpoints = {
   formTemplates: '/form-templates',
   formTemplate: (formTemplateId: string) => `/form-templates/${formTemplateId}`,
@@ -6,7 +6,7 @@ export const dynamicFormEndpoints = {
     `/form-templates/${formTemplateId}/responses`,
 } as const;
 
-/** Claves de react-query de la feature. */
+/** react-query keys of the feature. */
 export const dynamicFormQueryKeys = {
   all: ['form-templates'] as const,
   lists: () => [...dynamicFormQueryKeys.all, 'list'] as const,

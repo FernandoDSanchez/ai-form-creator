@@ -9,10 +9,11 @@ import { PrismaClient } from '@prisma/client';
 import { env } from '../../../config/env';
 
 /**
- * Cliente de Prisma con el ciclo de vida atado al de Nest.
+ * Prisma client with its lifecycle tied to Nest's.
  *
- * `$connect()` en el arranque a propósito: así un Postgres caído se detecta al
- * boot (el pod no pasa el readiness) y no en el primer POST del oficial.
+ * `$connect()` at boot on purpose: that way a Postgres that is down is detected
+ * at boot (the pod does not pass readiness) and not on the officer's first
+ * POST.
  */
 @Injectable()
 export class PrismaService
@@ -27,7 +28,7 @@ export class PrismaService
 
   async onModuleInit(): Promise<void> {
     await this.$connect();
-    this.logger.log('Conectado a Postgres');
+    this.logger.log('Connected to Postgres');
   }
 
   async onModuleDestroy(): Promise<void> {

@@ -2,7 +2,8 @@
   "name": "@ai-form-creator/back",
   "private": true,
   "version": "0.1.0",
-  "description": "API de AI Form Creator — ingesta de documentos regulatorios",
+  "description": "AI Form Creator API — regulatory document ingestion",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=20.19.0"
   },
@@ -23,21 +24,28 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "contracts:build": "npm --prefix ../../packages/contracts install && npm --prefix ../../packages/contracts run build"
   },
   "dependencies": {
+    "@ai-form-creator/contracts": "file:../../packages/contracts",
     "@nestjs/common": "^11.1.6",
     "@nestjs/core": "^11.1.6",
     "@nestjs/platform-express": "^11.1.6",
+    "@nestjs/platform-socket.io": "^11.1.28",
     "@nestjs/swagger": "^11.2.0",
+    "@nestjs/websockets": "^11.1.28",
     "@prisma/client": "^6.16.2",
+    "@temporalio/client": "^1.21.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
     "dotenv": "^17.2.2",
     "file-type": "^22.0.1",
+    "pg": "^8.22.0",
     "prisma": "^6.16.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
+    "socket.io": "^4.8.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -49,6 +57,7 @@
     "@types/jest": "^30.0.0",
     "@types/multer": "^2.0.0",
     "@types/node": "^24.13.2",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "^6.0.3",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
@@ -57,6 +66,7 @@
     "eslint-plugin-prettier": "^5.5.6",
     "globals": "^17.8.0",
     "jest": "^30.2.0",
+    "lint-staged": "^17.2.0",
     "prettier": "^3.9.6",
     "rimraf": "^6.0.1",
     "source-map-support": "^0.5.21",
@@ -89,6 +99,10 @@
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
+    "transformIgnorePatterns": [
+      "/node_modules/",
+      "/packages/[^/]+/dist/"
+    ],
     "collectCoverageFrom": [
       "**/*.(t|j)s"
     ],

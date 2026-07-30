@@ -1,13 +1,15 @@
 /**
- * Puerto de salida para arrancar el procesamiento asíncrono de un documento.
+ * Outbound port to kick off the asynchronous processing of a document.
  *
- * Recibe SÓLO el id: el workflow lee de Postgres lo que necesite. Así el
- * payload del workflow no queda acoplado a la forma de la entidad.
+ * It receives ONLY the id: the workflow reads whatever it needs from Postgres.
+ * That way the workflow payload does not get coupled to the shape of the
+ * entity.
  *
- * Adaptador actual: `infrastructure/processing/deferred-document-processing-launcher.ts`
- * (deja constancia y no hace nada más). Cuando exista la capa de Temporal, se
- * reemplaza por un adaptador que haga `workflow.start('ProcessRagDoc', …)`
- * sin tocar ni el dominio ni el caso de uso.
+ * Current adapter:
+ * `infrastructure/processing/deferred-document-processing-launcher.ts` (it
+ * leaves a trace and does nothing else). Once the Temporal layer exists, it is
+ * replaced by an adapter doing `workflow.start('ProcessRagDoc', …)` without
+ * touching either the domain or the use case.
  */
 export type DocumentProcessingLauncher = {
   launch(regulatoryDocumentId: string): Promise<void>;

@@ -1,20 +1,22 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# Envuelve el componente genérico de postgres con el prefijo app-.
-# Produce: app-postgres (StatefulSet, Service) + su PVC app-postgres-storage.
+# Wraps the generic postgres component with the app- prefix.
+# It produces: app-postgres (StatefulSet, Service) + its app-postgres-storage
+# PVC.
 #
-# POR QUÉ EXISTE: en un namespace único conviven dos Postgres — éste y el que
-# trae el bundle temporal-stack. Los dos salen del mismo componente genérico,
-# así que sin prefijo colisionan en StatefulSet/Service/Secret `postgres` y el
-# Service terminaría balanceando contra los pods del otro.
+# WHY IT EXISTS: in a single namespace two Postgres instances coexist — this
+# one and the one the temporal-stack bundle brings. Both come from the same
+# generic component, so without a prefix they collide on the `postgres`
+# StatefulSet/Service/Secret and the Service would end up balancing against the
+# other one's pods.
 #
-# Se prefija ÉSTE y no el de Temporal a propósito: el de Temporal vive dentro
-# del bundle remoto y renombrarlo obligaría a parchear `POSTGRES_SEEDS` y dos
-# `secretKeyRef` adentro del bundle. Éste lo referenciamos nosotros, así que
-# alcanza con envolverlo acá.
+# THIS one is prefixed and not Temporal's on purpose: Temporal's lives inside
+# the remote bundle and renaming it would force patching `POSTGRES_SEEDS` and
+# two `secretKeyRef` inside the bundle. This one we reference ourselves, so
+# wrapping it here is enough.
 #
-# El overlay debe proveer el Secret `app-postgres-secret`.
+# The overlay must provide the `app-postgres-secret` Secret.
 
 resources:
   - https://github.com/AItizate/forjate.git//k8s/components/apps/databases/postgres?ref=7ac17e6a07446969b2b12004f694e09aa134642e
@@ -22,8 +24,9 @@ resources:
 namePrefix: app-
 
 patches:
-  # namePrefix no se propaga al secretRef cuando el Secret no está en este
-  # build (lo genera el overlay padre), así que lo apuntamos explícito.
+  # namePrefix does not propagate to the secretRef when the Secret is not in
+  # this build (the parent overlay generates it), so we point at it
+  # explicitly.
   - target:
       kind: StatefulSet
       name: postgres
@@ -31,9 +34,9 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/envFrom/0/secretRef/name
         value: app-postgres-secret
-  # namePrefix renombra recursos pero deja la label `app` intacta: el Postgres
-  # de Temporal, con la misma label, quedaría detrás de este Service. Se
-  # renombra la label de los dos lados para mantenerlos separados.
+  # namePrefix renames resources but leaves the `app` label intact: Temporal's
+  # Postgres, carrying the same label, would end up behind this Service. The
+  # label is renamed on both sides to keep them apart.
   - target:
       kind: StatefulSet
       name: postgres

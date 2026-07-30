@@ -6,8 +6,8 @@ import { cn } from '@/utils/cn';
 import { Spinner } from '../spinner/spinner';
 
 /**
- * Variant Mapping con CVA: las variantes son datos, no `if/else`.
- * Todas las clases usan design tokens (`bg-brand-600`, `p-md`, `rounded-md`).
+ * Variant Mapping with CVA: variants are data, not `if/else`.
+ * Every class uses design tokens (`bg-brand-600`, `p-md`, `rounded-md`).
  */
 export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-sm rounded-md font-medium transition-colors disabled:pointer-events-none disabled:opacity-50',

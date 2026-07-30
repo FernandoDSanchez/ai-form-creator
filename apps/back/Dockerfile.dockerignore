@@ -1,0 +1,24 @@
+# Ignore file of this Dockerfile: BuildKit prefers it over the `.dockerignore`
+# at the root of the context. It exists because the context became the whole
+# monorepo (the back needs `packages/contracts`), and without it the RAGFlow
+# checkout, the front and every node_modules would be sent to the daemon.
+
+# what gets reinstalled/rebuilt inside the image
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+
+# secrets and local noise
+**/.env
+**/.env.*
+**/*.log
+.git
+.husky
+.claude
+
+# what does not take part in the back build
+apps/front
+ragflow
+iac
+steps

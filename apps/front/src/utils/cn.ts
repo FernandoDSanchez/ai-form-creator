@@ -1,5 +1,5 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-/** Une clases de Tailwind resolviendo conflictos (la última gana). */
+/** Joins Tailwind classes resolving conflicts (the last one wins). */
 export const cn = (...inputs: ClassValue[]) => twMerge(clsx(inputs));

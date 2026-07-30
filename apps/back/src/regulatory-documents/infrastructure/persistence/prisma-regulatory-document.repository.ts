@@ -9,7 +9,7 @@ import type {
 
 import { toRegulatoryDocument } from './regulatory-document.mapper';
 
-/** Adaptador de salida: implementa el puerto del repositorio sobre Postgres. */
+/** Outbound adapter: implements the repository port on top of Postgres. */
 @Injectable()
 export class PrismaRegulatoryDocumentRepository implements RegulatoryDocumentRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -27,5 +27,13 @@ export class PrismaRegulatoryDocumentRepository implements RegulatoryDocumentRep
     });
 
     return toRegulatoryDocument(row);
+  }
+
+  async findAll(): Promise<RegulatoryDocument[]> {
+    const rows = await this.prisma.regulatoryDocument.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows.map(toRegulatoryDocument);
   }
 }

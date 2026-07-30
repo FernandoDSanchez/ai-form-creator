@@ -7,12 +7,32 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    # nip.io resuelve *.192.168.18.23.nip.io → 192.168.18.23 (la IP del nodo),
-    # así el Ingress funciona en local sin tocar /etc/hosts ni tener DNS.
-    # En un cluster real, reemplazá por el dominio de verdad.
+    # nip.io resolves *.192.168.18.23.nip.io → 192.168.18.23 (the node IP), so
+    # the Ingress works locally without touching /etc/hosts and without DNS.
+    # On a real cluster, replace with the actual domain.
     - host: "app.192.168.18.23.nip.io"
       http:
         paths:
+          # The API is served under the SAME origin as the front, and not on
+          # api.<host>, so there is no CORS in the middle: the `api-client`
+          # sends `withCredentials: true`, and against
+          # `Access-Control-Allow-Origin: *` the browser blocks the response.
+          # Same origin also lets cookies work on their own the day there is a
+          # session.
+          #
+          # `/api` is also the back's global prefix (`setGlobalPrefix`), so the
+          # path travels as-is: no rewrites. The front is built with
+          # VITE_APP_API_URL=/api (see .env.example).
+          #
+          # It goes first on purpose: it is the most specific route and has to
+          # beat the `/` that takes everything else to the front.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: back
+                port:
+                  number: 80
           - path: /
             pathType: Prefix
             backend:

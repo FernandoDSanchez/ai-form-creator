@@ -16,8 +16,8 @@ type RouteModule = {
 };
 
 /**
- * Convierte un módulo de ruta en la forma que espera react-router,
- * inyectando el `queryClient` en loaders/actions.
+ * Turns a route module into the shape react-router expects, injecting the
+ * `queryClient` into loaders/actions.
  */
 const convert = (queryClient: QueryClient) => (routeModule: RouteModule) => ({
   loader: routeModule.clientLoader?.(queryClient),
@@ -38,6 +38,25 @@ export const createAppRouter = (queryClient: QueryClient) =>
     {
       path: paths.forms.detail.path,
       lazy: () => import('./routes/forms/form').then(convert(queryClient)),
+    },
+    {
+      path: paths.regulatoryDocuments.root.path,
+      lazy: () =>
+        import('./routes/regulatory-documents').then(convert(queryClient)),
+    },
+    {
+      path: paths.formGenerations.root.path,
+      lazy: () =>
+        import('./routes/form-generations/form-generations').then(
+          convert(queryClient),
+        ),
+    },
+    {
+      path: paths.formGenerations.detail.path,
+      lazy: () =>
+        import('./routes/form-generations/form-generation').then(
+          convert(queryClient),
+        ),
     },
     {
       path: paths.notFound.path,

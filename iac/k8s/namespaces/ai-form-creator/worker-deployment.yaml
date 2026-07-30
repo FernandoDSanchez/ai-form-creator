@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  # Two replicas for availability, not for throughput: Temporal spreads the
+  # queue tasks across the workers that are listening, so a pod going down
+  # halts no workflow — another one picks the task up where it left off.
+  # Actually scaling is raising this, with no coordination of any kind.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          # Temporal worker: workflows and activities of form generation. It
+          # connects to Temporal, to LiteLLM, to RAGFlow and to app-postgres. It
+          # runs no migrations: the schema is governed by the back.
+          image: ai-form-creator/worker
+          # The image is imported by hand into the k3s containerd; there is no
+          # registry to pull it from. See the `images` block of the
+          # kustomization.
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: worker-config
+            - secretRef:
+                name: worker-secret
+          resources:
+            requests:
+              memory: "192Mi"
+              cpu: "100m"
+            limits:
+              # Looser than the back: the Temporal SDK loads the workflow
+              # bundle in a separate V8 context, and on top of that the Rust
+              # core has its own thread pool.
+              memory: "768Mi"
+              cpu: "1"
+          # No HTTP probes: the worker listens on no port. Its "being alive"
+          # is taking tasks from the queue, and that is looked at from the
+          # Temporal UI (Workers of the `form-generation` task queue), not from
+          # the kubelet. A TCP probe against a port that does not exist would be
+          # worse than none: it would restart healthy pods.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      # The worker's orderly shutdown stops taking new tasks and waits for the
+      # in-flight ones to finish. The longest activity is the model call (120 s
+      # timeout), so the 30 s default would cut it in half and Temporal would
+      # have to retry it in full.
+      terminationGracePeriodSeconds: 150
+      volumes:
+        - name: tmp
+          emptyDir: {}

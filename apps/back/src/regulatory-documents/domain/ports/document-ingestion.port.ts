@@ -1,18 +1,18 @@
 import type { UploadedFile } from '../uploaded-file';
 
-/** Lo que devuelve el motor de ingesta una vez que aceptó el archivo. */
+/** What the ingestion engine returns once it accepted the file. */
 export type IngestedDocument = {
-  /** Identificador del documento en el motor de ingesta. */
+  /** Identifier of the document in the ingestion engine. */
   documentId: string;
-  /** Colección/dataset donde quedó. */
+  /** Collection/dataset it ended up in. */
   datasetId: string;
 };
 
 /**
- * Puerto de salida hacia el motor de ingesta documental.
+ * Outbound port towards the document ingestion engine.
  *
- * El nombre no dice "RAGFlow" a propósito: el dominio sabe que alguien guarda
- * el archivo y devuelve un id, no quién. Adaptador actual:
+ * The name deliberately does not say "RAGFlow": the domain knows somebody
+ * stores the file and returns an id, not who. Current adapter:
  * `infrastructure/ragflow/ragflow-document-ingestion.adapter.ts`.
  */
 export type DocumentIngestion = {

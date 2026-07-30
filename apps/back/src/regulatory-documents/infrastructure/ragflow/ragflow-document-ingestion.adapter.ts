@@ -22,14 +22,15 @@ export type RagflowIngestionConfig = {
 };
 
 /**
- * Adaptador de salida: sube el archivo a RAGFlow, que lo persiste en su MinIO
- * y devuelve el `document_id`.
+ * Outbound adapter: uploads the file to RAGFlow, which persists it in its MinIO
+ * and returns the `document_id`.
  *
- * La config llega por constructor (la arma el módulo desde `config/env.ts`) en
- * vez de importar `env` acá: así el test instancia el adaptador con una URL
- * falsa sin montar todo el entorno.
+ * The config arrives through the constructor (the module builds it from
+ * `config/env.ts`) instead of importing `env` here: that way the test
+ * instantiates the adapter with a fake URL without setting up the whole
+ * environment.
  *
- * Usa el `fetch` nativo de Node — no hace falta axios para una sola llamada.
+ * It uses Node's native `fetch` — axios is not needed for a single call.
  */
 @Injectable()
 export class RagflowDocumentIngestionAdapter implements DocumentIngestion {
@@ -52,7 +53,7 @@ export class RagflowDocumentIngestionAdapter implements DocumentIngestion {
 
     if (!response.ok) {
       throw new DocumentIngestionFailedError(
-        `RAGFlow respondió HTTP ${response.status}`,
+        `RAGFlow answered HTTP ${response.status}`,
       );
     }
 
@@ -60,7 +61,7 @@ export class RagflowDocumentIngestionAdapter implements DocumentIngestion {
 
     if (!parsed.success) {
       throw new DocumentIngestionFailedError(
-        'la respuesta de RAGFlow no tiene la forma esperada',
+        'the RAGFlow response does not have the expected shape',
         { cause: parsed.error },
       );
     }
@@ -69,36 +70,36 @@ export class RagflowDocumentIngestionAdapter implements DocumentIngestion {
 
     if (body.code !== RAGFLOW_SUCCESS_CODE) {
       throw new DocumentIngestionFailedError(
-        body.message ?? `RAGFlow devolvió code ${body.code}`,
+        body.message ?? `RAGFlow returned code ${body.code}`,
       );
     }
 
-    // `data` es un array porque el endpoint acepta subidas múltiples; mandamos
-    // un solo archivo, así que nos quedamos con el primero.
+    // `data` is an array because the endpoint accepts multiple uploads; we send
+    // a single file, so we keep the first one.
     const [uploaded] = body.data ?? [];
 
     if (!uploaded) {
       throw new DocumentIngestionFailedError(
-        'RAGFlow aceptó la subida pero no devolvió ningún documento',
+        'RAGFlow accepted the upload but returned no document',
       );
     }
 
     this.logger.log(
-      `Documento subido a RAGFlow: ${uploaded.id} (dataset ${uploaded.dataset_id})`,
+      `Document uploaded to RAGFlow: ${uploaded.id} (dataset ${uploaded.dataset_id})`,
     );
 
     return { documentId: uploaded.id, datasetId: uploaded.dataset_id };
   }
 
   /**
-   * Envuelve el `fetch` para que cualquier fallo de red o el timeout salgan
-   * como error de dominio y no como un `TypeError` suelto.
+   * Wraps the `fetch` so that any network failure or the timeout comes out as a
+   * domain error and not as a loose `TypeError`.
    */
   private async post(url: string, form: FormData): Promise<Response> {
     try {
       return await fetch(url, {
         method: 'POST',
-        // Sin `Content-Type`: lo pone fetch con el boundary del multipart.
+        // No `Content-Type`: fetch sets it with the multipart boundary.
         headers: { Authorization: `Bearer ${this.config.apiKey}` },
         body: form,
         signal: AbortSignal.timeout(this.config.timeoutMs),
@@ -106,8 +107,8 @@ export class RagflowDocumentIngestionAdapter implements DocumentIngestion {
     } catch (cause) {
       const reason =
         cause instanceof Error && cause.name === 'TimeoutError'
-          ? `no respondió en ${this.config.timeoutMs} ms`
-          : 'no se pudo contactar el servicio';
+          ? `did not answer within ${this.config.timeoutMs} ms`
+          : 'could not reach the service';
 
       throw new DocumentIngestionFailedError(reason, { cause });
     }

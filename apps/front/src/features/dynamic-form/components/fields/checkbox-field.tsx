@@ -11,8 +11,8 @@ type CheckboxProps = {
 };
 
 /**
- * Formily deriva el valor del evento; en un checkbox el `event.target.value`
- * nativo es `"on"`, así que emitimos el booleano explícitamente.
+ * Formily derives the value from the event; on a checkbox the native
+ * `event.target.value` is `"on"`, so we emit the boolean explicitly.
  */
 const Checkbox = ({
   value = false,

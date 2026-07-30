@@ -3,8 +3,9 @@ import { Global, Module } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 
 /**
- * Global porque la conexión es una sola para todo el proceso; cada módulo que
- * necesite persistencia inyecta `PrismaService` sin reimportar nada.
+ * Global because the connection is a single one for the whole process; every
+ * module needing persistence injects `PrismaService` without re-importing
+ * anything.
  */
 @Global()
 @Module({

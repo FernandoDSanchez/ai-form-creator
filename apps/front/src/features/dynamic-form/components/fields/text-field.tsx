@@ -20,9 +20,9 @@ const TextInput = ({ value, invalid, className, ...props }: TextInputProps) => (
 );
 
 /**
- * `connect` enlaza el componente con el `field` de Formily:
- * inyecta `value`, `onChange`, `disabled`... `mapProps` traduce estado del
- * field a props del componente.
+ * `connect` binds the component to Formily's `field`: it injects `value`,
+ * `onChange`, `disabled`… `mapProps` translates field state into component
+ * props.
  */
 export const TextField = connect(
   TextInput,

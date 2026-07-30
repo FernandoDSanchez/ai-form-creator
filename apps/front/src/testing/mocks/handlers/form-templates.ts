@@ -27,7 +27,7 @@ export const formTemplatesHandlers = [
 
       if (!formTemplate) {
         return HttpResponse.json(
-          { message: 'Formulario no encontrado' },
+          { message: 'Form not found' },
           { status: 404 },
         );
       }

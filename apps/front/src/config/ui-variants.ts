@@ -1,10 +1,10 @@
 /**
- * Variant Mapping — diccionarios de variantes compartidas por toda la app.
+ * Variant Mapping — dictionaries of variants shared across the whole app.
  *
- * En vez de comparar contra strings sueltos (`if (type === 'error')`) o de
- * encadenar `if/else` por estado, se define un mapa `estado -> configuración`.
- * Los `as const` + `typeof` derivan los tipos, así que añadir una variante al
- * mapa la hace válida en TypeScript sin tocar ningún tipo a mano.
+ * Instead of comparing against loose strings (`if (type === 'error')`) or
+ * chaining `if/else` per state, a `state -> configuration` map is defined. The
+ * `as const` + `typeof` derive the types, so adding a variant to the map makes
+ * it valid in TypeScript without touching any type by hand.
  */
 export const notificationVariants = {
   info: 'info',

@@ -1,20 +1,15 @@
 /**
- * Estados del pipeline de ingesta.
+ * Ingestion pipeline statuses.
  *
- * Objeto `as const` en vez de `enum` (misma convención que el front,
- * `CLAUDE.md` §2): el dominio no depende del enum que genera Prisma, así que
- * renombrar una columna no arrastra al núcleo.
+ * Like the entity, they are defined in `@ai-form-creator/contracts`: the front
+ * needs the same literals to map status → visual variant, and a second list
+ * here would be a list that drifts.
+ *
+ * It is still an `as const` object and not Prisma's enum: renaming a column
+ * does not drag the core along.
  */
-export const regulatoryDocumentStatuses = {
-  /** Ya está en RAGFlow, todavía no lo procesó nadie. Estado inicial. */
-  pending: 'PENDING',
-  /** El workflow lo tomó y está parseando/indexando. */
-  processing: 'PROCESSING',
-  /** Chunks disponibles para recuperación. */
-  indexed: 'INDEXED',
-  /** El pipeline falló; requiere intervención. */
-  failed: 'FAILED',
-} as const;
-
-export type RegulatoryDocumentStatus =
-  (typeof regulatoryDocumentStatuses)[keyof typeof regulatoryDocumentStatuses];
+export {
+  regulatoryDocumentStatuses,
+  regulatoryDocumentStatusSchema,
+  type RegulatoryDocumentStatus,
+} from '@ai-form-creator/contracts/regulatory-documents/regulatory-document-status';

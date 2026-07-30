@@ -2,8 +2,8 @@ import type { ISchema } from '@formily/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  fieldComponentNames,
-  fieldDecoratorNames,
+  formFieldComponents,
+  formFieldDecorators,
 } from '@/features/dynamic-form/config/field-components';
 import { renderApp, screen, waitFor } from '@/testing/test-utils';
 
@@ -14,42 +14,42 @@ const schema: ISchema = {
   properties: {
     fullName: {
       type: 'string',
-      title: 'Nombre completo',
+      title: 'Full name',
       required: true,
-      'x-decorator': fieldDecoratorNames.formItem,
-      'x-component': fieldComponentNames.text,
+      'x-decorator': formFieldDecorators.formItem,
+      'x-component': formFieldComponents.text,
     },
   },
 };
 
 describe('DynamicForm', () => {
-  it('renderiza los campos que declara el schema', async () => {
+  it('renders the fields the schema declares', async () => {
     renderApp(<DynamicForm schema={schema} onSubmit={vi.fn()} />);
 
-    expect(await screen.findByText('Nombre completo')).toBeInTheDocument();
+    expect(await screen.findByText('Full name')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
   });
 
-  it('no envía si falta un campo requerido', async () => {
+  it('does not submit if a required field is missing', async () => {
     const onSubmit = vi.fn();
     const { user } = renderApp(
       <DynamicForm schema={schema} onSubmit={onSubmit} />,
     );
 
-    await user.click(await screen.findByRole('button', { name: 'Enviar' }));
+    await user.click(await screen.findByRole('button', { name: 'Submit' }));
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
-  it('envía los valores cuando el formulario es válido', async () => {
+  it('submits the values when the form is valid', async () => {
     const onSubmit = vi.fn();
     const { user } = renderApp(
       <DynamicForm schema={schema} onSubmit={onSubmit} />,
     );
 
     await user.type(await screen.findByRole('textbox'), 'Ada Lovelace');
-    await user.click(screen.getByRole('button', { name: 'Enviar' }));
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
 
     await waitFor(() =>
       expect(onSubmit).toHaveBeenCalledWith({ fullName: 'Ada Lovelace' }),

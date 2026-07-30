@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    // CommonJS, same as the back. The Temporal SDK works with both, and
+    // keeping a single format across the two Node services avoids the
+    // extension and interop gymnastics ESM imposes.
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2023",
+    "lib": ["ES2023"],
+
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": false,
+    "sourceMap": true,
+    "incremental": true,
+    // Inside `dist/` on purpose. By default it sits next to the tsconfig, that
+    // is, outside what `prebuild` deletes: the second time `npm run build` ran,
+    // tsc would read that record, conclude nothing changed and emit nothing —
+    // leaving an empty `dist/` without saying a word.
+    "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

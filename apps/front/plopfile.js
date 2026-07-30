@@ -1,27 +1,27 @@
 import { execFileSync } from 'node:child_process';
 
 /**
- * Generadores de código: `npm run generate`.
- * Mantienen la arquitectura (bulletproof-react) sin depender de la memoria.
+ * Code generators: `npm run generate`.
+ * They keep the architecture (bulletproof-react) without relying on memory.
  */
 const lintFix = (targetPath) => () => {
   execFileSync('npx', ['eslint', targetPath, '--fix'], { stdio: 'inherit' });
-  return `formateado con eslint --fix: ${targetPath}`;
+  return `formatted with eslint --fix: ${targetPath}`;
 };
 
 export default function plop(plopApi) {
   plopApi.setGenerator('feature', {
-    description: 'Nueva feature en src/features',
+    description: 'New feature in src/features',
     prompts: [
       {
         type: 'input',
         name: 'name',
-        message: 'Nombre de la feature (kebab-case, ej: form-builder):',
+        message: 'Feature name (kebab-case, e.g. form-builder):',
       },
       {
         type: 'input',
         name: 'entity',
-        message: 'Entidad principal (singular, ej: form-template):',
+        message: 'Main entity (singular, e.g. form-template):',
       },
     ],
     actions: [
@@ -52,23 +52,23 @@ export default function plop(plopApi) {
       () =>
         [
           '',
-          'Siguientes pasos:',
-          '  1. Añade la ruta en src/config/paths.ts',
-          '  2. Crea src/app/routes/... y regístrala en src/app/router.tsx',
-          '  3. Añade los handlers de mock en src/testing/mocks/handlers',
-          '  4. Reinicia ESLint: la nueva feature entra sola en las zonas restringidas',
+          'Next steps:',
+          '  1. Add the route in src/config/paths.ts',
+          '  2. Create src/app/routes/... and register it in src/app/router.tsx',
+          '  3. Add the mock handlers in src/testing/mocks/handlers',
+          '  4. Restart ESLint: the new feature enters the restricted zones on its own',
           '',
         ].join('\n'),
     ],
   });
 
   plopApi.setGenerator('component', {
-    description: 'Componente compartido en src/components/ui',
+    description: 'Shared component in src/components/ui',
     prompts: [
       {
         type: 'input',
         name: 'name',
-        message: 'Nombre del componente (kebab-case, ej: date-picker):',
+        message: 'Component name (kebab-case, e.g. date-picker):',
       },
     ],
     actions: [

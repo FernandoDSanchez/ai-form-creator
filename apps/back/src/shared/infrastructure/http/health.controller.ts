@@ -2,12 +2,12 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 /**
- * Liveness/readiness del Deployment. Queda fuera del prefijo global (`/api`)
- * porque las probes del manifiesto apuntan a `/health` a secas.
+ * Liveness/readiness of the Deployment. It stays out of the global prefix
+ * (`/api`) because the manifest probes point at plain `/health`.
  *
- * A propósito no consulta Postgres: si la base parpadea no queremos que
- * Kubernetes reinicie el pod en loop. La conexión ya se valida al arrancar
- * (`PrismaService.onModuleInit`).
+ * It deliberately does not query Postgres: if the database flickers we do not
+ * want Kubernetes restarting the pod in a loop. The connection is already
+ * validated at boot (`PrismaService.onModuleInit`).
  */
 @ApiTags('health')
 @Controller('health')

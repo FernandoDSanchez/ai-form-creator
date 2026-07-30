@@ -1,2 +1,8 @@
+# The contracts go first, and they are rebuilt: the apps type against the
+# package `dist/`, so if somebody touched `packages/contracts/src` without
+# rebuilding, the `check-types` below would look at stale types and go green for
+# the wrong reason.
+(cd packages/contracts && npm run check-types && npm run build)
 (cd apps/front && npm run check-types && npm run test)
 (cd apps/back && npm run check-types && npm run test)
+(cd apps/worker && npm run check-types && npm run test)

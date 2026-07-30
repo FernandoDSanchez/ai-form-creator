@@ -1,8 +1,8 @@
 import * as z from 'zod';
 
 /**
- * Único punto del código donde se lee `import.meta.env`.
- * ESLint prohíbe leerlo fuera de `src/config` (regla `no-restricted-properties`).
+ * The only place in the code that reads `import.meta.env`.
+ * ESLint forbids reading it outside `src/config` (`no-restricted-properties`).
  */
 const createEnv = () => {
   const EnvSchema = z.object({
@@ -31,7 +31,7 @@ const createEnv = () => {
 
     throw new Error(
       [
-        'Variables de entorno inválidas. Revisa tu archivo `.env` (ver `.env.example`).',
+        'Invalid environment variables. Check your `.env` file (see `.env.example`).',
         ...Object.entries(fieldErrors).map(
           ([key, errors]) => `- VITE_APP_${key}: ${errors?.join(', ')}`,
         ),

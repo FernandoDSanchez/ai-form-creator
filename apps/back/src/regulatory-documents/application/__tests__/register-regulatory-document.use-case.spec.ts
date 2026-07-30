@@ -14,16 +14,18 @@ import type { UploadedFile } from '../../domain/uploaded-file';
 import { RegisterRegulatoryDocumentUseCase } from '../register-regulatory-document.use-case';
 
 /**
- * Cero infraestructura: ni Nest, ni Postgres, ni HTTP. Esa es la ventaja
- * concreta de que el caso de uso sólo dependa de puertos.
+ * Zero infrastructure: no Nest, no Postgres, no HTTP. That is the concrete
+ * upside of the use case depending only on ports.
  */
 
 const DOCUMENT_ID = 'e2f0b2ac-2c31-4a1f-9f1d-4a7d2e1a55aa';
 const RAGFLOW_DOCUMENT_ID = 'b330ec2e91ec11efbc510242ac120004';
 const RAGFLOW_DATASET_ID = '527fa74891e811ef9c650242ac120006';
+/** The entity is the shared contract: dates are ISO strings, not `Date`. */
+const EPOCH = new Date(0).toISOString();
 
 const aPdf = (): UploadedFile => ({
-  fileName: 'resolucion-1234.pdf',
+  fileName: 'resolution-1234.pdf',
   mimeType: 'application/pdf',
   sizeBytes: 2048,
   content: Buffer.from('%PDF-1.7'),
@@ -44,10 +46,12 @@ const aRepository = (): RegulatoryDocumentRepository => ({
         Promise.resolve({
           ...document,
           id: DOCUMENT_ID,
-          createdAt: new Date(0),
-          updatedAt: new Date(0),
+          createdAt: EPOCH,
+          updatedAt: EPOCH,
         }),
     ),
+  // Registration lists nothing; this is here to satisfy the port.
+  findAll: jest.fn().mockResolvedValue([]),
 });
 
 const aLauncher = (): DocumentProcessingLauncher => ({
@@ -55,7 +59,7 @@ const aLauncher = (): DocumentProcessingLauncher => ({
 });
 
 describe('RegisterRegulatoryDocumentUseCase', () => {
-  it('sube el archivo, guarda la fila en PENDING y dispara el procesamiento', async () => {
+  it('uploads the file, stores the row as PENDING and triggers the processing', async () => {
     const documents = aRepository();
     const ingestion = anIngestion();
     const processing = aLauncher();
@@ -81,7 +85,7 @@ describe('RegisterRegulatoryDocumentUseCase', () => {
     expect(result.status).toBe(regulatoryDocumentStatuses.pending);
   });
 
-  it('le pasa al procesamiento sólo el id interno, no el de RAGFlow', async () => {
+  it('passes the processing only the internal id, not the RAGFlow one', async () => {
     const processing = aLauncher();
 
     const useCase = new RegisterRegulatoryDocumentUseCase(
@@ -96,13 +100,13 @@ describe('RegisterRegulatoryDocumentUseCase', () => {
     expect(processing.launch).toHaveBeenCalledTimes(1);
   });
 
-  it('no crea la fila si la subida falla: nada de filas huérfanas', async () => {
+  it('does not create the row if the upload fails: no orphan rows', async () => {
     const documents = aRepository();
     const processing = aLauncher();
     const ingestion: DocumentIngestion = {
       ingest: jest
         .fn()
-        .mockRejectedValue(new DocumentIngestionFailedError('caído')),
+        .mockRejectedValue(new DocumentIngestionFailedError('down')),
     };
 
     const useCase = new RegisterRegulatoryDocumentUseCase(

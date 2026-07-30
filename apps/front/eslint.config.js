@@ -18,8 +18,8 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const featuresDir = path.join(rootDir, 'src', 'features');
 
 /**
- * Las features se descubren en disco: al crear `src/features/mi-feature` la
- * restricción de imports cruzados se aplica sola, sin editar este archivo.
+ * Features are discovered on disk: creating `src/features/my-feature` applies
+ * the cross-import restriction on its own, without editing this file.
  */
 const featureNames = fs.existsSync(featuresDir)
   ? fs
@@ -28,22 +28,22 @@ const featureNames = fs.existsSync(featuresDir)
       .map((entry) => entry.name)
   : [];
 
-/** Regla 1: una feature no puede importar de otra feature. */
+/** Rule 1: a feature cannot import from another feature. */
 const crossFeatureZones = featureNames.map((feature) => ({
   target: `./src/features/${feature}`,
   from: './src/features',
   except: [`./${feature}`],
   message:
-    'No se permiten imports entre features. Compón las features en la capa `app/`.',
+    'Imports between features are not allowed. Compose features in the `app/` layer.',
 }));
 
-/** Regla 2: el código fluye en una sola dirección: shared -> features -> app. */
+/** Rule 2: code flows in one direction only: shared -> features -> app. */
 const unidirectionalZones = [
   {
     target: './src/features',
     from: './src/app',
     message:
-      'Una feature no puede importar de `app/`. La dependencia va de app -> features.',
+      'A feature cannot import from `app/`. The dependency goes app -> features.',
   },
   {
     target: [
@@ -55,24 +55,23 @@ const unidirectionalZones = [
       './src/config',
     ],
     from: ['./src/features', './src/app'],
-    message:
-      'El código compartido no puede importar de `features/` ni de `app/`.',
+    message: 'Shared code cannot import from `features/` or from `app/`.',
   },
 ];
 
 /**
- * Imports prohibidos por patrón. Complementan a `no-restricted-paths`:
- * funcionan sobre el string del import, sin depender del resolver.
+ * Imports forbidden by pattern. They complement `no-restricted-paths`: they
+ * work on the import string, without relying on the resolver.
  */
 const noAppImports = {
   group: ['@/app', '@/app/*', '@/app/**'],
-  message: 'Sólo `src/app` puede importar de `src/app`.',
+  message: 'Only `src/app` can import from `src/app`.',
 };
 
 const noFeatureImports = {
   group: ['@/features/*', '@/features/**'],
   message:
-    'El código compartido no puede importar de `features/`. Inyecta lo que necesites por props.',
+    'Shared code cannot import from `features/`. Inject what you need through props.',
 };
 
 const otherFeatureImports = (feature) => ({
@@ -83,7 +82,7 @@ const otherFeatureImports = (feature) => ({
     `!@/features/${feature}/**`,
   ],
   message:
-    'No se permiten imports entre features. Compón las features en `src/app/routes`.',
+    'Imports between features are not allowed. Compose features in `src/app/routes`.',
 });
 
 export default tseslint.config(
@@ -136,7 +135,7 @@ export default tseslint.config(
       'check-file': checkFile,
     },
     rules: {
-      // --- Arquitectura -------------------------------------------------------
+      // --- Architecture -------------------------------------------------------
       'import-x/no-restricted-paths': [
         'error',
         { zones: [...crossFeatureZones, ...unidirectionalZones] },
@@ -163,7 +162,7 @@ export default tseslint.config(
       'import-x/no-named-as-default-member': 'off',
       'import-x/default': 'off',
 
-      // --- Nombrado de archivos y carpetas -----------------------------------
+      // --- File and folder naming --------------------------------------------
       'check-file/filename-naming-convention': [
         'error',
         { '**/*.{ts,tsx}': 'KEBAB_CASE' },
@@ -174,7 +173,7 @@ export default tseslint.config(
         { 'src/**/!(__tests__)': 'KEBAB_CASE' },
       ],
 
-      // --- Nombrado de símbolos ----------------------------------------------
+      // --- Symbol naming ------------------------------------------------------
       '@typescript-eslint/naming-convention': [
         'error',
         {
@@ -192,8 +191,8 @@ export default tseslint.config(
           format: ['camelCase'],
           leadingUnderscore: 'allow',
         },
-        // Los renombrados de destructuring (`{ default: Component }`) y los
-        // datos que vienen de APIs externas no siguen nuestras reglas.
+        // Destructuring renames (`{ default: Component }`) and data coming
+        // from external APIs do not follow our rules.
         {
           selector: ['variable', 'parameter'],
           modifiers: ['destructured'],
@@ -224,18 +223,18 @@ export default tseslint.config(
           selector:
             "BinaryExpression[operator=/^[=!]==?$/]:not([left.type='UnaryExpression']) > Literal[value=/^[A-Za-z]/]",
           message:
-            'Magic string: compara contra una constante nombrada (config/constants) en vez de un literal.',
+            'Magic string: compare against a named constant (config/constants) instead of a literal.',
         },
         {
           selector: "JSXAttribute[name.name='to'] > Literal",
           message:
-            'Magic string: usa `paths.*.getHref()` de `@/config/paths` en vez de una ruta literal.',
+            'Magic string: use `paths.*.getHref()` from `@/config/paths` instead of a literal route.',
         },
         {
           selector:
             "CallExpression[callee.object.name='localStorage'] > Literal:first-child, CallExpression[callee.object.name='sessionStorage'] > Literal:first-child",
           message:
-            'Magic string: define la clave de storage en `@/config/storage-keys`.',
+            'Magic string: define the storage key in `@/config/storage-keys`.',
         },
       ],
       '@typescript-eslint/no-magic-numbers': [
@@ -252,7 +251,7 @@ export default tseslint.config(
         },
       ],
 
-      // --- Calidad general ----------------------------------------------------
+      // --- General quality ----------------------------------------------------
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -270,7 +269,7 @@ export default tseslint.config(
   },
 
   // ---------------------------------------------------------------------------
-  // Sólo `src/config` (y el bootstrap) leen variables de entorno crudas.
+  // Only `src/config` (and the bootstrap) read raw environment variables.
   // ---------------------------------------------------------------------------
   {
     files: ['src/**/*.{ts,tsx}'],
@@ -282,38 +281,38 @@ export default tseslint.config(
           selector:
             "MemberExpression[object.type='MetaProperty'][property.name='env']",
           message:
-            'No leas `import.meta.env` directamente: expórtalo tipado desde `@/config/env`.',
+            'Do not read `import.meta.env` directly: export it typed from `@/config/env`.',
         },
         {
           selector:
             "BinaryExpression[operator=/^[=!]==?$/]:not([left.type='UnaryExpression']) > Literal[value=/^[A-Za-z]/]",
           message:
-            'Magic string: compara contra una constante nombrada (config/constants) en vez de un literal.',
+            'Magic string: compare against a named constant (config/constants) instead of a literal.',
         },
         {
           selector: "JSXAttribute[name.name='to'] > Literal",
           message:
-            'Magic string: usa `paths.*.getHref()` de `@/config/paths` en vez de una ruta literal.',
+            'Magic string: use `paths.*.getHref()` from `@/config/paths` instead of a literal route.',
         },
         {
           selector:
             "CallExpression[callee.object.name='localStorage'] > Literal:first-child, CallExpression[callee.object.name='sessionStorage'] > Literal:first-child",
           message:
-            'Magic string: define la clave de storage en `@/config/storage-keys`.',
+            'Magic string: define the storage key in `@/config/storage-keys`.',
         },
       ],
       'no-restricted-globals': [
         'error',
         {
           name: 'process',
-          message: 'Usa `@/config/env` en vez de `process.env`.',
+          message: 'Use `@/config/env` instead of `process.env`.',
         },
       ],
     },
   },
 
   // ---------------------------------------------------------------------------
-  // Capa compartida: no conoce ni features ni app.
+  // Shared layer: it knows neither features nor app.
   // ---------------------------------------------------------------------------
   {
     files: [
@@ -333,8 +332,8 @@ export default tseslint.config(
   },
 
   // ---------------------------------------------------------------------------
-  // Por feature: cada feature sólo puede importarse a sí misma.
-  // `src/app` sí puede importar cualquier feature (regla base).
+  // Per feature: every feature can only import itself.
+  // `src/app` can import any feature (base rule).
   // ---------------------------------------------------------------------------
   ...featureNames.map((feature) => ({
     files: [`src/features/${feature}/**/*.{ts,tsx}`],
@@ -347,9 +346,9 @@ export default tseslint.config(
   })),
 
   // ---------------------------------------------------------------------------
-  // Excepciones a las reglas de arquitectura:
-  // - `src/main.tsx` es el composition root: monta `src/app`.
-  // - `src/testing` es infraestructura de pruebas/mocks: conoce a todos.
+  // Exceptions to the architecture rules:
+  // - `src/main.tsx` is the composition root: it mounts `src/app`.
+  // - `src/testing` is test/mock infrastructure: it knows everybody.
   // ---------------------------------------------------------------------------
   {
     files: ['src/main.tsx', 'src/testing/**/*.{ts,tsx}'],
@@ -360,8 +359,8 @@ export default tseslint.config(
   },
 
   // ---------------------------------------------------------------------------
-  // Configuración centralizada: los literales viven aquí, así que se relajan
-  // las reglas de magic values.
+  // Centralized configuration: the literals live here, so the magic-value rules
+  // are relaxed.
   // ---------------------------------------------------------------------------
   {
     files: [

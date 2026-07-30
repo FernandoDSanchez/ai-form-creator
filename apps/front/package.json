@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "license": "Apache-2.0",
   "engines": {
     "node": ">=20.19.0"
   },
@@ -21,6 +22,7 @@
     "prepare": "cd ../.. && husky"
   },
   "dependencies": {
+    "@ai-form-creator/contracts": "file:../../packages/contracts",
     "@formily/core": "^2.3.7",
     "@formily/react": "^2.3.7",
     "@formily/reactive": "^2.3.7",
@@ -35,6 +37,7 @@
     "react-dom": "^19.2.7",
     "react-error-boundary": "^6.1.2",
     "react-router": "^8.3.0",
+    "socket.io-client": "^4.8.3",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3",
     "zustand": "^5.0.14"

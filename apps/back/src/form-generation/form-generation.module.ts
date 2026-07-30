@@ -34,28 +34,28 @@ import { TemporalFormGenerationOrchestrator } from './infrastructure/temporal/te
 import { FormGenerationsGateway } from './infrastructure/websocket/form-generations.gateway';
 
 /**
- * El único lugar donde se decide qué adaptador tapa cada puerto.
+ * The only place where it is decided which adapter covers each port.
  *
- * Cambiar Temporal por otro orquestador, o el `LISTEN` de Postgres por una
- * cola, es editar una línea de acá. Nada del núcleo se entera.
+ * Swapping Temporal for another orchestrator, or the Postgres `LISTEN` for a
+ * queue, is editing one line here. Nothing in the core finds out.
  *
- * Los tres adaptadores con ciclo de vida (el feed, el orquestador y el gateway)
- * se registran **dos veces**: como clase, para que Nest les corra los hooks
- * (`onModuleInit`, `onModuleDestroy`), y como `useExisting` bajo su token, para
- * que los casos de uso los reciban por el puerto. Sin el par, o los hooks no
- * corren o hay dos instancias distintas del mismo adaptador — y la segunda
- * versión es peor, porque el gateway que publica no sería el que tiene el
- * servidor de socket.io.
+ * The three adapters with a lifecycle (the feed, the orchestrator and the
+ * gateway) are registered **twice**: as a class, so Nest runs their hooks
+ * (`onModuleInit`, `onModuleDestroy`), and as `useExisting` under their token,
+ * so the use cases receive them through the port. Without the pair, either the
+ * hooks do not run or there are two different instances of the same adapter —
+ * and the second version is worse, because the gateway doing the publishing
+ * would not be the one holding the socket.io server.
  */
 @Module({
   controllers: [FormGenerationsController],
   providers: [
-    // --- adaptadores con ciclo de vida ---
+    // --- adapters with a lifecycle ---
     PostgresFormGenerationChangeFeed,
     TemporalFormGenerationOrchestrator,
     FormGenerationsGateway,
 
-    // --- puerto → adaptador ---
+    // --- port → adapter ---
     {
       provide: FORM_GENERATION_REPOSITORY,
       useClass: PrismaFormGenerationRepository,
@@ -77,9 +77,10 @@ import { FormGenerationsGateway } from './infrastructure/websocket/form-generati
       useExisting: FormGenerationsGateway,
     },
 
-    // --- casos de uso ---
-    // `useFactory` en vez de `@Injectable()`: así las clases de aplicación no
-    // importan Nest y sus tests se escriben con dobles, sin contenedor de DI.
+    // --- use cases ---
+    // `useFactory` instead of `@Injectable()`: this way the application classes
+    // do not import Nest and their tests are written with doubles, with no DI
+    // container.
     {
       provide: RequestFormGenerationUseCase,
       useFactory: (
@@ -125,8 +126,9 @@ import { FormGenerationsGateway } from './infrastructure/websocket/form-generati
         changeFeed: FormGenerationChangeFeed,
         publisher: FormGenerationPublisher,
       ) => {
-        // El logger se inyecta como función y no se importa dentro del caso de
-        // uso: `Logger` es de Nest, y la aplicación no conoce el framework.
+        // The logger is injected as a function and not imported inside the use
+        // case: `Logger` belongs to Nest, and the application does not know the
+        // framework.
         const logger = new Logger(BroadcastFormGenerationChangesUseCase.name);
 
         return new BroadcastFormGenerationChangesUseCase(
@@ -135,7 +137,7 @@ import { FormGenerationsGateway } from './infrastructure/websocket/form-generati
           publisher,
           (error) =>
             logger.error(
-              'No se pudo publicar un cambio',
+              'Could not publish a change',
               error instanceof Error ? error.stack : String(error),
             ),
         );
@@ -147,7 +149,7 @@ import { FormGenerationsGateway } from './infrastructure/websocket/form-generati
       ],
     },
 
-    // --- arranque ---
+    // --- bootstrap ---
     FormGenerationBroadcaster,
   ],
 })

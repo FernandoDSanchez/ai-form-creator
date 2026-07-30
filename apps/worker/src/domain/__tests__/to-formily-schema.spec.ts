@@ -14,7 +14,7 @@ const aField = (
   overrides: Partial<GeneratedFormField> = {},
 ): GeneratedFormField => ({
   name: formFieldNames.entityLegalName,
-  title: 'Razón social',
+  title: 'Legal name',
   component: formFieldComponents.text,
   isRequired: true,
   helpText: '',
@@ -24,13 +24,13 @@ const aField = (
 });
 
 const aForm = (fields: GeneratedFormField[]): GeneratedForm => ({
-  title: 'Declaración',
+  title: 'Declaration',
   description: '',
   fields,
 });
 
 describe('toFormilySchema', () => {
-  it('usa el `name` como clave de la propiedad', () => {
+  it('uses the `name` as the property key', () => {
     const schema = toFormilySchema(aForm([aField()]));
 
     expect(Object.keys(schema.properties)).toEqual([
@@ -38,7 +38,7 @@ describe('toFormilySchema', () => {
     ]);
   });
 
-  it('deduce el tipo del valor a partir del componente', () => {
+  it('derives the value type from the component', () => {
     const schema = toFormilySchema(
       aForm([
         aField({
@@ -60,11 +60,11 @@ describe('toFormilySchema', () => {
       'number',
     );
     expect(schema.properties[formFieldNames.dutiesPaid]?.type).toBe('boolean');
-    // Las fechas viajan como string: el `DateField` guarda un ISO, no un `Date`.
+    // Dates travel as strings: the `DateField` stores an ISO value, not a `Date`.
     expect(schema.properties[formFieldNames.arrivalDate]?.type).toBe('string');
   });
 
-  it('pone el decorador y el componente que espera el renderer del front', () => {
+  it('sets the decorator and component the front renderer expects', () => {
     const field = toFormilySchema(aForm([aField()])).properties[
       formFieldNames.entityLegalName
     ];
@@ -76,9 +76,9 @@ describe('toFormilySchema', () => {
     });
   });
 
-  it('omite placeholder y ayuda cuando vienen vacíos', () => {
-    // El vacío es cómo el structured output dice «no aplica». Copiarlo tal cual
-    // le pondría al input un placeholder vacío en vez de ninguno.
+  it('omits placeholder and help when they come in empty', () => {
+    // Emptiness is how the structured output says "not applicable". Copying it
+    // as-is would give the input an empty placeholder instead of none.
     const field = toFormilySchema(aForm([aField()])).properties[
       formFieldNames.entityLegalName
     ];
@@ -88,10 +88,10 @@ describe('toFormilySchema', () => {
     expect(field).not.toHaveProperty('enum');
   });
 
-  it('traslada placeholder, ayuda y opciones cuando vienen con contenido', () => {
+  it('carries placeholder, help and options over when they have content', () => {
     const options = [
-      { label: 'Bajo', value: 'bajo' },
-      { label: 'Alto', value: 'alto' },
+      { label: 'Low', value: 'low' },
+      { label: 'High', value: 'high' },
     ];
 
     const field = toFormilySchema(
@@ -99,21 +99,21 @@ describe('toFormilySchema', () => {
         aField({
           name: formFieldNames.riskLevel,
           component: formFieldComponents.select,
-          helpText: 'Según la matriz vigente.',
-          placeholder: 'Elegí un nivel',
+          helpText: 'According to the current matrix.',
+          placeholder: 'Choose a level',
           options,
         }),
       ]),
     ).properties[formFieldNames.riskLevel];
 
     expect(field).toMatchObject({
-      'x-component-props': { placeholder: 'Elegí un nivel' },
-      'x-decorator-props': { help: 'Según la matriz vigente.' },
+      'x-component-props': { placeholder: 'Choose a level' },
+      'x-decorator-props': { help: 'According to the current matrix.' },
       enum: options,
     });
   });
 
-  it('conserva el orden en que el modelo puso los campos', () => {
+  it('keeps the order in which the model put the fields', () => {
     const schema = toFormilySchema(
       aForm([
         aField({ name: formFieldNames.entityLegalName }),

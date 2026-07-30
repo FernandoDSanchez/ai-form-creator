@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    // CommonJS igual que el back. El SDK de Temporal funciona con los dos, y
-    // mantener un solo formato entre los dos servicios de Node evita la
-    // gimnasia de extensiones e interop que impone ESM.
+    // CommonJS, same as the back. The Temporal SDK works with both, and
+    // keeping a single format across the two Node services avoids the
+    // extension and interop gymnastics ESM imposes.
     "module": "commonjs",
     "moduleResolution": "node",
     "target": "ES2023",
@@ -13,10 +13,10 @@
     "declaration": false,
     "sourceMap": true,
     "incremental": true,
-    // Dentro de `dist/` a propósito. Por defecto queda junto al tsconfig, o sea
-    // fuera de lo que borra el `prebuild`: la segunda vez que se corriera
-    // `npm run build`, tsc leería ese registro, concluiría que no cambió nada y
-    // no emitiría nada — dejando un `dist/` vacío sin decir una palabra.
+    // Inside `dist/` on purpose. By default it sits next to the tsconfig, that
+    // is, outside what `prebuild` deletes: the second time `npm run build` ran,
+    // tsc would read that record, conclude nothing changed and emit nothing —
+    // leaving an empty `dist/` without saying a word.
     "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
 
     "strict": true,

@@ -3,9 +3,9 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 /**
- * Único punto del backend que lee `process.env`. Igual que en el front
- * (`src/config/env.ts`): si falta una variable, el proceso no arranca — mejor
- * un crash al boot que un 500 a las tres horas.
+ * The only place in the backend that reads `process.env`. Same as in the front
+ * (`src/config/env.ts`): if a variable is missing, the process does not boot —
+ * better a crash at boot than a 500 three hours later.
  */
 
 const DEFAULT_PORT = 8080;
@@ -15,28 +15,28 @@ const envSchema = z.object({
     .enum(['development', 'test', 'production'])
     .default('development'),
 
-  /** Coincide con el `containerPort` del Deployment. */
+  /** Matches the `containerPort` of the Deployment. */
   PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
 
   /** postgresql://app:…@app-postgres:5432/ai_form_creator */
   DATABASE_URL: z.string().min(1),
 
-  /** API HTTP de RAGFlow. En el cluster: http://ragflow:9380 */
+  /** RAGFlow HTTP API. In the cluster: http://ragflow:9380 */
   RAGFLOW_API_URL: z.url(),
 
-  /** API key generada desde la UI de RAGFlow (Bearer). */
+  /** API key generated from the RAGFlow UI (Bearer). */
   RAGFLOW_API_KEY: z.string().min(1),
 
-  /** Dataset (knowledge base) donde aterrizan los documentos regulatorios. */
+  /** Dataset (knowledge base) where regulatory documents land. */
   RAGFLOW_DATASET_ID: z.string().min(1),
 
-  /** Frontend de Temporal. En el cluster: temporal-server:7233 */
+  /** Temporal frontend. In the cluster: temporal-server:7233 */
   TEMPORAL_ADDRESS: z.string().min(1),
 
   /**
-   * Namespace de Temporal. `default` es el que crea sola la imagen
-   * auto-setup del bundle; se deja configurable porque separar por namespace es
-   * la forma barata de que dos entornos compartan un cluster de Temporal.
+   * Temporal namespace. `default` is the one the bundle's auto-setup image
+   * creates on its own; it stays configurable because separating by namespace
+   * is the cheap way for two environments to share one Temporal cluster.
    */
   TEMPORAL_NAMESPACE: z.string().min(1).default('default'),
 });
@@ -45,7 +45,7 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   const detail = z.prettifyError(parsed.error);
-  throw new Error(`Variables de entorno inválidas:\n${detail}`);
+  throw new Error(`Invalid environment variables:\n${detail}`);
 }
 
 export const env = parsed.data;

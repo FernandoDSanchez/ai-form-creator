@@ -1,122 +1,125 @@
 # Backend — AI Form Creator
 
-API en NestJS con **arquitectura hexagonal** (puertos y adaptadores) y Prisma
-sobre Postgres. Hoy expone un único caso de uso: dar de alta un
-`RegulatoryDocument`.
+NestJS API with **hexagonal architecture** (ports and adapters) and Prisma on
+top of Postgres.
 
-## Arranque
+## Startup
 
 ```bash
-cp .env.example .env      # completar DATABASE_URL, RAGFLOW_API_KEY, RAGFLOW_DATASET_ID
+cp .env.example .env      # fill in DATABASE_URL, RAGFLOW_API_KEY, RAGFLOW_DATASET_ID
 npm install
-npm run db:deploy         # aplica las migraciones
-npm run dev               # http://localhost:8080 — Swagger en /docs
+npm run db:deploy         # applies the migrations
+npm run dev               # http://localhost:8080 — Swagger at /docs
 ```
 
-Contra el Postgres del cluster:
+Against the cluster's Postgres:
 
 ```bash
 kubectl -n ai-form-creator port-forward svc/app-postgres 15432:5432
-# y en .env: DATABASE_URL=postgresql://app:<password>@localhost:15432/ai_form_creator
+# and in .env: DATABASE_URL=postgresql://app:<password>@localhost:15432/ai_form_creator
 ```
 
-| Comando               | Qué hace                                    |
-| --------------------- | ------------------------------------------- |
-| `npm run dev`         | Nest en watch mode                          |
-| `npm run lint`        | ESLint, 0 tolerancia a warnings             |
-| `npm run check-types` | `tsc --noEmit`                              |
-| `npm test`            | Jest (unitarios, sin infraestructura)       |
-| `npm run build`       | Compila a `dist/`                           |
-| `npm run db:migrate`  | Crea una migración nueva (necesita la base) |
-| `npm run db:deploy`   | Aplica migraciones pendientes               |
+| Command               | What it does                                 |
+| --------------------- | -------------------------------------------- |
+| `npm run dev`         | Nest in watch mode                           |
+| `npm run lint`        | ESLint, zero tolerance for warnings          |
+| `npm run check-types` | `tsc --noEmit`                               |
+| `npm test`            | Jest (unit tests, no infrastructure)         |
+| `npm run build`       | Compiles to `dist/`                          |
+| `npm run db:migrate`  | Creates a new migration (needs the database) |
+| `npm run db:deploy`   | Applies pending migrations                   |
 
-## El endpoint
+## The endpoints
 
-`POST /api/regulatory-documents` — `multipart/form-data`, campo `file`, PDF,
-hasta 20 MiB.
+`POST /api/regulatory-documents` — `multipart/form-data`, field `file`, PDF, up
+to 20 MiB.
 
-| Código | Cuándo                                                  |
-| ------ | ------------------------------------------------------- |
-| `202`  | Aceptado. Devuelve la fila creada, siempre en `PENDING` |
-| `400`  | Falta el archivo, o no es un PDF                        |
-| `413`  | Excede el límite de tamaño                              |
-| `502`  | RAGFlow rechazó la subida o no respondió                |
+| Code  | When                                                   |
+| ----- | ------------------------------------------------------ |
+| `202` | Accepted. Returns the created row, always in `PENDING` |
+| `400` | The file is missing, or it is not a PDF                |
+| `413` | Exceeds the size limit                                 |
+| `502` | RAGFlow rejected the upload or did not answer          |
 
-El PDF se valida por **magic numbers**, no por el `Content-Type` que manda el
-cliente: un `.exe` renombrado a `.pdf` se rechaza.
+The PDF is validated by **magic numbers**, not by the `Content-Type` the client
+sends: an `.exe` renamed to `.pdf` is rejected.
 
 ```bash
 curl -X POST http://localhost:8080/api/regulatory-documents \
-     -F "file=@resolucion-1234.pdf"
+     -F "file=@resolution-1234.pdf"
 ```
 
-## Arquitectura
+`POST /api/form-generations` accepts a generation request and enqueues the
+Temporal workflow; `POST /api/form-generations/:id/review` carries the human
+verdict. See the root `README.md` for the full path of a generation.
 
-Las dependencias apuntan **hacia adentro**. El dominio no conoce a nadie; la
-aplicación conoce sólo al dominio; la infraestructura conoce a los dos.
+## Architecture
+
+Dependencies point **inwards**. The domain knows nobody; the application knows
+only the domain; the infrastructure knows both.
 
 ```
 src/regulatory-documents/
-├── domain/                         ← núcleo: cero imports de Nest/Prisma/HTTP
-│   ├── regulatory-document.ts          entidad
-│   ├── regulatory-document-status.ts   estados (objeto `as const`)
-│   ├── uploaded-file.ts                archivo, sin saber de multipart
-│   ├── errors/                         errores de negocio (no HttpException)
-│   └── ports/                          ← lo que el núcleo necesita del mundo
+├── domain/                         ← core: zero imports of Nest/Prisma/HTTP
+│   ├── regulatory-document.ts          entity
+│   ├── regulatory-document-status.ts   statuses (`as const` object)
+│   ├── uploaded-file.ts                file, knowing nothing about multipart
+│   ├── errors/                         business errors (not HttpException)
+│   └── ports/                          ← what the core needs from the world
 │       ├── regulatory-document-repository.port.ts
 │       ├── document-ingestion.port.ts
 │       └── document-processing-launcher.port.ts
 ├── application/
-│   └── register-regulatory-document.use-case.ts   ← los 4 pasos, en orden
-└── infrastructure/                 ← adaptadores: tapan los puertos
-    ├── http/                           controlador, DTOs, filtro de errores
-    ├── persistence/                    Prisma + mapper fila↔entidad
-    ├── ragflow/                        proxy de subida (fetch nativo)
-    └── processing/                     placeholder de Temporal
+│   └── register-regulatory-document.use-case.ts   ← the 4 steps, in order
+└── infrastructure/                 ← adapters: they cover the ports
+    ├── http/                           controller, DTOs, error filter
+    ├── persistence/                    Prisma + row↔entity mapper
+    ├── ragflow/                        upload proxy (native fetch)
+    └── processing/                     Temporal placeholder
 ```
 
-`regulatory-documents.module.ts` es **el único archivo que decide qué adaptador
-tapa cada puerto**. Cambiar de motor de ingesta, de base o conectar Temporal es
-editar una línea de ahí.
+`regulatory-documents.module.ts` is **the only file that decides which adapter
+covers each port**. Switching ingestion engines, databases, or wiring Temporal
+in is editing one line there.
 
-### Por qué el caso de uso no tiene `@Injectable()`
+### Why the use case has no `@Injectable()`
 
-Para que la capa de aplicación no importe Nest. El módulo lo instancia con un
-`useFactory`, y su test lo construye con tres dobles y cero infraestructura —
-mirá `application/__tests__/`.
+So the application layer does not import Nest. The module instantiates it with a
+`useFactory`, and its test builds it with three doubles and zero infrastructure
+— see `application/__tests__/`.
 
-### Está forzado por ESLint
+### It is enforced by ESLint
 
-Igual que el front, romper la arquitectura falla el lint y bloquea el commit:
+Just like the front, breaking the architecture fails the lint and blocks the
+commit:
 
-- `import-x/no-restricted-paths` — el dominio no puede importar de
-  `application/` ni de `infrastructure/`; la aplicación no puede importar
-  adaptadores.
-- `no-restricted-imports` — `domain/` y `application/` no pueden importar
-  `@nestjs/*`, `@prisma/client`, `express` ni `multer`.
+- `import-x/no-restricted-paths` — the domain cannot import from `application/`
+  or `infrastructure/`; the application cannot import adapters.
+- `no-restricted-imports` — `domain/` and `application/` cannot import
+  `@nestjs/*`, `@prisma/client`, `express` or `multer`.
 
-Las zonas se generan solas: `eslint.config.mjs` lee `src/` en disco y protege
-cualquier carpeta que tenga un `domain/` adentro.
+The zones generate themselves: `eslint.config.mjs` reads `src/` from disk and
+protects any folder with a `domain/` inside it.
 
-## El flujo (fase síncrona)
+## The flow (synchronous phase)
 
 ```
 POST /api/regulatory-documents
    │
    ├─1─► RAGFlow  POST /api/v1/datasets/{id}/documents   → document_id
    ├─2─► Postgres INSERT regulatory_documents (PENDING)
-   ├─3─► launch(documentId)        ← hoy sólo loguea; acá entra Temporal
+   ├─3─► launch(documentId)        ← today it only logs; Temporal goes here
    └─4─► 202 Accepted
 ```
 
-El orden importa: primero RAGFlow, después la fila. Al revés, un fallo de la
-subida dejaría filas `PENDING` que no referencian ningún archivo.
+The order matters: RAGFlow first, the row after. The other way around, a failed
+upload would leave `PENDING` rows referencing no file at all.
 
-## Lo que falta
+## What is missing
 
-- **Temporal.** El puerto `DocumentProcessingLauncher` ya existe y el caso de
-  uso ya lo llama con el id. Falta el adaptador que haga
-  `workflow.start('ProcessRagDoc', { args: [documentId] })`.
-- **Credenciales de RAGFlow.** Ver `HUMAN-TASK.md` en la raíz: sin
-  `RAGFLOW_API_KEY` y `RAGFLOW_DATASET_ID` el alta devuelve `502`.
-- **Lectura de documentos.** Sólo existe el alta; no hay `GET` todavía.
+- **Temporal for ingestion.** The `DocumentProcessingLauncher` port already
+  exists and the use case already calls it with the id. What is missing is the
+  adapter doing `workflow.start('ProcessRagDoc', { args: [documentId] })`. (The
+  form generation workflow, which is a different one, is already wired.)
+- **RAGFlow credentials.** See `HUMAN-TASK.md` at the root: without
+  `RAGFLOW_API_KEY` and `RAGFLOW_DATASET_ID` the upload returns `502`.

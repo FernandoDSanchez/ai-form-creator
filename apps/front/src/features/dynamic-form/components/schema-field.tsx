@@ -15,9 +15,9 @@ import { TextareaField } from './fields/textarea-field';
 import { FormItem } from './form-item';
 
 /**
- * Variant Mapping del renderer: `x-component` (string del schema) -> componente.
- * Añadir un tipo de campo nuevo = añadir la constante en `field-components.ts`
- * y su entrada aquí. Ningún `if/else` ni `switch` en el renderizado.
+ * Variant Mapping of the renderer: `x-component` (a schema string) -> component.
+ * Adding a new field type = adding the constant in `field-components.ts` and
+ * its entry here. No `if/else` and no `switch` in the rendering.
  */
 export const SchemaField = createSchemaField({
   components: {

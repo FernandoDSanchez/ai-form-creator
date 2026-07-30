@@ -23,15 +23,15 @@ import { DeferredDocumentProcessingLauncher } from './infrastructure/processing/
 import { RagflowDocumentIngestionAdapter } from './infrastructure/ragflow/ragflow-document-ingestion.adapter';
 
 /**
- * El único lugar donde se decide qué adaptador tapa cada puerto.
+ * The only place where it is decided which adapter covers each port.
  *
- * Cambiar de motor de ingesta, de base o conectar Temporal es editar una línea
- * de acá. Nada más del módulo se entera.
+ * Switching ingestion engines, databases, or wiring Temporal in is editing one
+ * line here. Nothing else in the module finds out.
  */
 @Module({
   controllers: [RegulatoryDocumentsController],
   providers: [
-    // --- puerto → adaptador ---
+    // --- port → adapter ---
     {
       provide: REGULATORY_DOCUMENT_REPOSITORY,
       useClass: PrismaRegulatoryDocumentRepository,
@@ -47,14 +47,14 @@ import { RagflowDocumentIngestionAdapter } from './infrastructure/ragflow/ragflo
         }),
     },
     {
-      // TODO(temporal): reemplazar por TemporalDocumentProcessingLauncher.
+      // TODO(temporal): replace with TemporalDocumentProcessingLauncher.
       provide: DOCUMENT_PROCESSING_LAUNCHER,
       useClass: DeferredDocumentProcessingLauncher,
     },
 
-    // --- caso de uso ---
-    // `useFactory` en vez de `@Injectable()`: así la clase de aplicación no
-    // importa Nest y su test unitario no necesita el contenedor de DI.
+    // --- use case ---
+    // `useFactory` instead of `@Injectable()`: this way the application class
+    // does not import Nest and its unit test needs no DI container.
     {
       provide: RegisterRegulatoryDocumentUseCase,
       useFactory: (

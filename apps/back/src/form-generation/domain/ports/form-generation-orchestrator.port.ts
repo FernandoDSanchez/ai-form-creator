@@ -2,17 +2,17 @@ import type { FormGenerationReview } from '@ai-form-creator/contracts/form-gener
 import type { GenerateFormWorkflowInput } from '@ai-form-creator/contracts/form-generation/form-generation-workflow';
 
 /**
- * Puerto de salida hacia quien orquesta el pipeline.
+ * Outbound port towards whoever orchestrates the pipeline.
  *
- * El nombre no menciona a Temporal (`CLAUDE.md` §9): el núcleo pide que alguien
- * arranque la generación y que le acerque el veredicto humano; con qué motor
- * pasa eso lo decide `form-generation.module.ts`.
+ * The name does not mention Temporal (`CLAUDE.md` §9): the core asks for
+ * somebody to start the generation and to hand over the human verdict; which
+ * engine that happens on is decided by `form-generation.module.ts`.
  *
- * `submitReview` está acá y no en el repositorio porque la revisión no es una
- * escritura: es destrabar un workflow que está detenido esperándola. Quien
- * escribe el APPROVED/REJECTED en la base sigue siendo el worker, con lo cual
- * hay un solo dueño de los estados y el evento de WebSocket sale por el mismo
- * camino que todos los demás.
+ * `submitReview` is here and not in the repository because the review is not a
+ * write: it is unblocking a workflow that is halted waiting for it. The one
+ * writing APPROVED/REJECTED into the database is still the worker, which means
+ * there is a single owner of the statuses and the WebSocket event goes out the
+ * same way as all the others.
  */
 export type FormGenerationOrchestrator = {
   start(input: GenerateFormWorkflowInput): Promise<void>;

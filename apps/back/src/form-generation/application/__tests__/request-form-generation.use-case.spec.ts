@@ -25,7 +25,7 @@ const aDocument = (id: string): WorkflowRegulatoryDocument => ({
 const aRequest = (
   regulatoryDocumentIds: string[] = [DOCUMENT_ID],
 ): NewFormGeneration => ({
-  prompt: 'Formulario de declaración de importación con control sanitario.',
+  prompt: 'Import declaration form with sanitary control.',
   regulatoryDocumentIds,
 });
 
@@ -63,7 +63,7 @@ const anOrchestrator = (): FormGenerationOrchestrator => ({
 });
 
 describe('RequestFormGenerationUseCase', () => {
-  it('escribe la solicitud y arranca el workflow', async () => {
+  it('writes the request and starts the workflow', async () => {
     const formGenerations = aRepository();
     const orchestrator = anOrchestrator();
     const useCase = new RequestFormGenerationUseCase(
@@ -79,9 +79,9 @@ describe('RequestFormGenerationUseCase', () => {
     expect(orchestrator.start).toHaveBeenCalledTimes(1);
   });
 
-  it('le pasa al workflow los documentos ya resueltos, no sólo los ids', async () => {
-    // Es lo que permite que el worker no lea la base y que la generación quede
-    // atada a los documentos que había al momento del pedido.
+  it('passes the workflow the already resolved documents, not just the ids', async () => {
+    // This is what lets the worker skip reading the database and keeps the
+    // generation tied to the documents that existed at request time.
     const orchestrator = anOrchestrator();
     const useCase = new RequestFormGenerationUseCase(
       aRepository(),
@@ -98,10 +98,10 @@ describe('RequestFormGenerationUseCase', () => {
     });
   });
 
-  it('rechaza el pedido si algún documento no existe', async () => {
+  it('rejects the request if some document does not exist', async () => {
     const formGenerations = aRepository();
     const orchestrator = anOrchestrator();
-    // El catálogo devuelve sólo uno de los dos pedidos.
+    // The catalog returns only one of the two requested.
     const useCase = new RequestFormGenerationUseCase(
       formGenerations,
       aCatalog([aDocument(DOCUMENT_ID)]),
@@ -112,13 +112,13 @@ describe('RequestFormGenerationUseCase', () => {
       useCase.execute(aRequest([DOCUMENT_ID, OTHER_DOCUMENT_ID])),
     ).rejects.toBeInstanceOf(UnknownRegulatoryDocumentError);
 
-    // Lo importante no es el error sino lo que NO pasó: nada de filas PENDING
-    // apuntando a documentos inexistentes.
+    // What matters is not the error but what did NOT happen: no PENDING rows
+    // pointing at non-existent documents.
     expect(formGenerations.create).not.toHaveBeenCalled();
     expect(orchestrator.start).not.toHaveBeenCalled();
   });
 
-  it('acepta un pedido sin documentos', async () => {
+  it('accepts a request with no documents', async () => {
     const orchestrator = anOrchestrator();
     const useCase = new RequestFormGenerationUseCase(
       aRepository(),
@@ -133,12 +133,14 @@ describe('RequestFormGenerationUseCase', () => {
     );
   });
 
-  it('deja la fila escrita aunque el orquestador falle', async () => {
-    // La fase síncrona ya cumplió: el pedido quedó registrado y se puede
-    // reintentar. Si se disparara antes de escribir, se perdería.
+  it('leaves the row written even if the orchestrator fails', async () => {
+    // The synchronous phase already did its job: the request is recorded and
+    // can be retried. Triggering before writing would lose it.
     const formGenerations = aRepository();
     const orchestrator: FormGenerationOrchestrator = {
-      start: jest.fn().mockRejectedValue(new Error('Temporal no responde')),
+      start: jest
+        .fn()
+        .mockRejectedValue(new Error('Temporal is not answering')),
       submitReview: jest.fn(),
     };
 

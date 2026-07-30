@@ -1,46 +1,48 @@
 /**
- * Traduce el JSON Schema que emite TypeBox al dialecto acotado que aceptan los
- * proveedores en modo `strict`.
+ * Translates the JSON Schema TypeBox emits into the narrow dialect providers
+ * accept in `strict` mode.
  *
- * Hacen falta cuatro arreglos, y ninguno es cosmético:
+ * Four fixes are needed, and none of them is cosmetic:
  *
- * 1. **`anyOf` de `const` → `enum`.** `Type.Enum` produce
- *    `anyOf: [{const:'a',type:'string'}, …]`. Es JSON Schema correcto, pero
- *    Gemini —el modelo que hoy está detrás de LiteLLM— trabaja con un
- *    subconjunto tipo OpenAPI donde las listas cerradas se expresan con `enum`
- *    y `anyOf` de constantes no se entiende. Con 32 campos en el vocabulario,
- *    esa diferencia es la que decide si el modelo sabe de qué lista elegir.
- * 2. **`$id` afuera.** Un `$id` anidado abre un ámbito de URI base nuevo, y los
- *    validadores de los proveedores lo rechazan o lo ignoran de formas
- *    distintas. No aporta nada del lado del modelo.
- * 3. **`additionalProperties: false` y `required` con todo.** Es literalmente
- *    lo que `strict` exige. Los schemas del paquete ya vienen así, pero
- *    forzarlo acá hace que un `Type.Optional` agregado sin pensar falle al
- *    mandar y no en la respuesta.
- * 4. **`minItems`/`maxItems` afuera.** Con ellos puestos, Gemini contesta
- *    `400 INVALID_ARGUMENT` con el mensaje «Request contains an invalid
- *    argument», que no dice cuál. No es que no los soporte: un arreglo de
- *    strings con los dos puestos pasa sin chistar. Acá los arreglos llevan
- *    objetos adentro —y `fields[]` lleva otro arreglo, `options[]`— y en esa
- *    forma los rechaza. Ubicarlo requirió bisecar el schema palabra por
- *    palabra contra el LiteLLM real: sacando cualquier otra cosa (`strict`,
- *    `additionalProperties`, `minLength`/`maxLength`, `description`,
- *    `required`) el 400 seguía; sacando este par, 200.
+ * 1. **`anyOf` of `const` → `enum`.** `Type.Enum` produces
+ *    `anyOf: [{const:'a',type:'string'}, …]`. It is correct JSON Schema, but
+ *    Gemini — the model currently behind LiteLLM — works with an OpenAPI-like
+ *    subset where closed lists are expressed with `enum` and an `anyOf` of
+ *    constants is not understood. With 32 fields in the vocabulary, that
+ *    difference is what decides whether the model knows which list to choose
+ *    from.
+ * 2. **`$id` out.** A nested `$id` opens a new base URI scope, and provider
+ *    validators either reject it or ignore it in different ways. It
+ *    contributes nothing on the model side.
+ * 3. **`additionalProperties: false` and `required` with everything.** It is
+ *    literally what `strict` demands. The package schemas already come that
+ *    way, but forcing it here makes a thoughtlessly added `Type.Optional` fail
+ *    when sending and not in the answer.
+ * 4. **`minItems`/`maxItems` out.** With them set, Gemini answers
+ *    `400 INVALID_ARGUMENT` with the message "Request contains an invalid
+ *    argument", which does not say which. It is not that it does not support
+ *    them: an array of strings with both set goes through without complaint.
+ *    Here the arrays carry objects inside — and `fields[]` carries another
+ *    array, `options[]` — and in that shape it rejects them. Pinning this down
+ *    required bisecting the schema word by word against the real LiteLLM:
+ *    removing anything else (`strict`, `additionalProperties`,
+ *    `minLength`/`maxLength`, `description`, `required`) the 400 persisted;
+ *    removing this pair, 200.
  *
- *    El límite no se pierde, se corre de lugar. El prompt ya nombra los mismos
- *    números desde `generatedFormLimits`, y `validate-generated-form.ts`
- *    valida la respuesta contra el schema entero de TypeBox —con `minItems` y
- *    `maxItems` adentro—, así que un formulario de treinta campos cae en el
- *    bucle de reparación. Lo que se pierde es que el proveedor lo garantice al
- *    decodificar, y eso vale menos que un pipeline que arranca.
+ *    The limit is not lost, it moves. The prompt already names the same numbers
+ *    from `generatedFormLimits`, and `validate-generated-form.ts` validates the
+ *    answer against the whole TypeBox schema — with `minItems` and `maxItems`
+ *    inside — so a thirty-field form falls into the repair loop. What is lost
+ *    is the provider guaranteeing it while decoding, and that is worth less
+ *    than a pipeline that starts.
  *
- * Función pura sobre datos: recibe un schema, devuelve otro. No importa
- * TypeBox — no le hace falta, un schema es un objeto.
+ * A pure function over data: it receives a schema, it returns another. It does
+ * not import TypeBox — it does not need to, a schema is an object.
  */
 
 export type StrictJsonSchema = Record<string, unknown>;
 
-/** Palabras clave que no viajan al proveedor. Ver los puntos 2 y 4 de arriba. */
+/** Keywords that do not travel to the provider. See points 2 and 4 above. */
 const droppedKeywords: readonly string[] = [
   '$id',
   '$schema',
@@ -66,10 +68,11 @@ const project = (node: unknown): unknown => {
     return node;
   }
 
-  // Primero se limpia y se baja por el árbol, y **después** se intenta el
-  // colapso a `enum`. Al revés —que es como estaba— el nodo que se convertía en
-  // enum se saltaba el filtro de palabras clave y se llevaba su `$id` puesto:
-  // justo en los dos nodos donde más importa, que son los dos vocabularios.
+  // First it cleans up and walks down the tree, and **then** it attempts the
+  // collapse into `enum`. The other way around — which is how it used to be —
+  // the node turning into an enum skipped the keyword filter and carried its
+  // `$id` along: precisely in the two nodes where it matters most, which are
+  // the two vocabularies.
   const result: Record<string, unknown> = {};
 
   for (const [keyword, value] of Object.entries(node)) {
@@ -95,11 +98,11 @@ const project = (node: unknown): unknown => {
 };
 
 /**
- * Colapsa `anyOf` de constantes del mismo tipo primitivo a un `enum`.
+ * Collapses an `anyOf` of constants of the same primitive type into an `enum`.
  *
- * Si la unión mezcla tipos, o alguno de sus miembros trae algo más que `const`
- * y `type`, se deja como está: perder información sería peor que mandar un
- * `anyOf` que el proveedor quizás entienda.
+ * If the union mixes types, or any of its members carries anything beyond
+ * `const` and `type`, it is left as it is: losing information would be worse
+ * than sending an `anyOf` the provider might understand.
  */
 const toEnum = (node: Record<string, unknown>): StrictJsonSchema | null => {
   const { anyOf, ...rest } = node;

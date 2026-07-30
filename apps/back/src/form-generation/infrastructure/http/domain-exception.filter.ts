@@ -14,26 +14,27 @@ import { FormGenerationOrchestrationFailedError } from '../../domain/errors/form
 import { UnknownRegulatoryDocumentError } from '../../domain/errors/unknown-regulatory-document.error';
 
 /**
- * Traduce los errores de **este** contexto a códigos HTTP.
+ * Translates the errors of **this** context into HTTP codes.
  *
- * Se parece bastante al de `regulatory-documents/` y eso está bien: cada
- * contexto acotado traduce su propio vocabulario de errores. Un traductor
- * compartido en `shared/` no es posible sin romper la regla de dependencias
- * —`shared/` no puede importar de un contexto (`CLAUDE.md` §9)— y además sería
- * una lista creciente de errores ajenos en un archivo que no es de nadie. Se
- * repiten las diez líneas del fallback y se gana que cada contexto sea
- * borrable de un tirón.
+ * It looks a lot like the one in `regulatory-documents/`, and that is fine:
+ * every bounded context translates its own vocabulary of errors. A shared
+ * translator in `shared/` is not possible without breaking the dependency rule
+ * — `shared/` cannot import from a context (`CLAUDE.md` §9) — and it would also
+ * be a growing list of somebody else's errors in a file that belongs to nobody.
+ * The ten lines of the fallback get repeated, and in exchange every context
+ * stays deletable in one go.
  *
- * El mapeo es un `Record` (`CLAUDE.md` §5): agregar un error de dominio es
- * agregar una fila, y no hay cadena de `if` que crezca.
+ * The mapping is a `Record` (`CLAUDE.md` §5): adding a domain error is adding a
+ * row, and there is no `if` chain that grows.
  */
 const httpStatusByErrorName: Record<string, HttpStatus> = {
   [FormGenerationNotFoundError.name]: HttpStatus.NOT_FOUND,
-  // 400: ids inventados son un error del cliente.
+  // 400: made-up ids are a client error.
   [UnknownRegulatoryDocumentError.name]: HttpStatus.BAD_REQUEST,
-  // 409: el pedido es válido, pero choca con el estado actual del recurso.
+  // 409: the request is valid, but it clashes with the current state of the
+  // resource.
   [FormGenerationNotReviewableError.name]: HttpStatus.CONFLICT,
-  // 502: el que falló es un servicio de afuera (Temporal), no el request.
+  // 502: the one that failed is an outside service (Temporal), not the request.
   [FormGenerationOrchestrationFailedError.name]: HttpStatus.BAD_GATEWAY,
 };
 
@@ -44,7 +45,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
 
-    // Los que arma Nest (validación del DTO, 404 de ruta) pasan de largo.
+    // The ones Nest builds (DTO validation, route 404) go straight through.
     if (exception instanceof HttpException) {
       response.status(exception.getStatus()).json(exception.getResponse());
       return;
@@ -56,8 +57,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
         : undefined;
 
     if (status && exception instanceof Error) {
-      // Los 5xx se loguean con stack; los 4xx son del cliente y ensuciarían el
-      // log sin aportar nada.
+      // 5xx are logged with a stack; 4xx belong to the client and would dirty
+      // the log without contributing anything.
       if (status >= HttpStatus.INTERNAL_SERVER_ERROR) {
         this.logger.error(exception.message, exception.stack);
       }
@@ -71,14 +72,14 @@ export class DomainExceptionFilter implements ExceptionFilter {
     }
 
     this.logger.error(
-      'Error no contemplado',
+      'Unhandled error',
       exception instanceof Error ? exception.stack : String(exception),
     );
 
-    // Sin detalles hacia afuera: lo que pasó está en el log.
+    // No details on the way out: what happened is in the log.
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
-      message: 'Error interno',
+      message: 'Internal error',
       error: 'Internal Server Error',
     });
   }

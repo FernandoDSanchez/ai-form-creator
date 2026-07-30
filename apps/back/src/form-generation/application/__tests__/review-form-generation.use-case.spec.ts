@@ -15,7 +15,7 @@ const EPOCH = new Date(0).toISOString();
 
 const aFormGeneration = (status: FormGenerationStatus): FormGeneration => ({
   id: FORM_GENERATION_ID,
-  prompt: 'Formulario de declaración de importación.',
+  prompt: 'Import declaration form.',
   regulatoryDocumentIds: [],
   status,
   attempts: 1,
@@ -43,11 +43,11 @@ const anOrchestrator = (): FormGenerationOrchestrator => ({
 
 const aReview = () => ({
   decision: formGenerationReviewDecisions.approve,
-  reviewerNote: 'Cubre lo que pide la resolución.',
+  reviewerNote: 'It covers what the regulation asks for.',
 });
 
 describe('ReviewFormGenerationUseCase', () => {
-  it('le acerca el veredicto al workflow', async () => {
+  it('hands the verdict over to the workflow', async () => {
     const orchestrator = anOrchestrator();
     const useCase = new ReviewFormGenerationUseCase(
       aRepository(aFormGeneration(formGenerationStatuses.awaitingReview)),
@@ -62,9 +62,9 @@ describe('ReviewFormGenerationUseCase', () => {
     );
   });
 
-  it('no escribe el estado: de eso se encarga el worker', async () => {
-    // Que el puerto del repositorio no tenga un `update` es la regla escrita en
-    // el tipo; este test es la regla escrita en el comportamiento.
+  it('does not write the status: the worker takes care of that', async () => {
+    // That the repository port has no `update` is the rule written into the
+    // type; this test is the rule written into the behaviour.
     const formGenerations = aRepository(
       aFormGeneration(formGenerationStatuses.awaitingReview),
     );
@@ -77,7 +77,7 @@ describe('ReviewFormGenerationUseCase', () => {
     expect(formGenerations.create).not.toHaveBeenCalled();
   });
 
-  it('falla si la solicitud no existe', async () => {
+  it('fails if the request does not exist', async () => {
     const useCase = new ReviewFormGenerationUseCase(
       aRepository(null),
       anOrchestrator(),
@@ -93,10 +93,10 @@ describe('ReviewFormGenerationUseCase', () => {
     formGenerationStatuses.generating,
     formGenerationStatuses.approved,
     formGenerationStatuses.failed,
-  ])('rechaza revisar algo en %s', async (status) => {
-    // Sostiene la regla del sistema: la única transición hacia APPROVED sale de
-    // AWAITING_REVIEW. Aprobar dos veces, o aprobar algo que todavía se está
-    // generando, no son operaciones que existan.
+  ])('refuses to review something in %s', async (status) => {
+    // Upholds the rule of the system: the only transition towards APPROVED
+    // starts at AWAITING_REVIEW. Approving twice, or approving something still
+    // being generated, are not operations that exist.
     const orchestrator = anOrchestrator();
     const useCase = new ReviewFormGenerationUseCase(
       aRepository(aFormGeneration(status)),

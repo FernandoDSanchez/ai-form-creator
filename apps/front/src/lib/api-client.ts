@@ -22,7 +22,7 @@ api.interceptors.response.use(
   (response) => response.data,
   (error) => {
     const message: string =
-      error.response?.data?.message ?? error.message ?? 'Error inesperado';
+      error.response?.data?.message ?? error.message ?? 'Unexpected error';
 
     useNotifications.getState().addNotification({
       type: notificationVariants.error,

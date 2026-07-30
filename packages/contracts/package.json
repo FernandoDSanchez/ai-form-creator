@@ -2,7 +2,7 @@
   "name": "@ai-form-creator/contracts",
   "private": true,
   "version": "0.1.0",
-  "description": "Contratos compartidos entre apps/back y apps/front. Schemas TypeBox: una sola definición, dos consumidores.",
+  "description": "Contracts shared between apps/back and apps/front. TypeBox schemas: one definition, two consumers.",
   "engines": {
     "node": ">=20.19.0"
   },

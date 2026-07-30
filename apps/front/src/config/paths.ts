@@ -1,7 +1,7 @@
 /**
- * Única fuente de verdad de las rutas de la app.
- * Nunca escribas una ruta literal en un componente: usa `paths.x.getHref()`.
- * (ESLint bloquea `<Link to="/algo">` mediante `no-restricted-syntax`.)
+ * Single source of truth for the app routes.
+ * Never write a literal route in a component: use `paths.x.getHref()`.
+ * (ESLint blocks `<Link to="/something">` through `no-restricted-syntax`.)
  */
 export const paths = {
   home: {

@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
 /**
- * RAGFlow es un servicio externo: lo que llega se valida antes de creerle.
- * Sólo se declaran los campos que consumimos — el resto pasa de largo.
+ * RAGFlow is an external service: what arrives is validated before being
+ * believed. Only the fields we consume are declared — the rest goes straight
+ * through.
  */
 export const ragflowUploadResponseSchema = z.object({
   code: z.number(),

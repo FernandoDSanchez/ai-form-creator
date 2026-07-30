@@ -1,25 +1,26 @@
 import type { WorkflowRegulatoryDocument } from '@ai-form-creator/contracts/form-generation/form-generation-workflow';
 
 /**
- * Lo que este contexto necesita saber de los documentos regulatorios: nada más
- * que sus identificadores del lado de RAGFlow.
+ * What this context needs to know about regulatory documents: nothing beyond
+ * their identifiers on the RAGFlow side.
  *
- * Es un puerto y no un import de `regulatory-documents/` a propósito, y no sólo
- * porque ESLint prohíba el import cruzado: la prohibición está para forzar
- * justamente esta pregunta. Lo que este contexto necesita del otro es una
- * proyección de tres campos, y declararla acá deja escrito ese acuerdo mínimo.
- * El día que la ingesta cambie de motor, lo que se rompe es el adaptador, no
- * este contexto.
+ * It is a port and not an import of `regulatory-documents/` on purpose, and not
+ * only because ESLint forbids the cross import: the ban is there to force
+ * exactly this question. What this context needs from the other one is a
+ * three-field projection, and declaring it here writes that minimal agreement
+ * down. The day ingestion changes engines, what breaks is the adapter, not this
+ * context.
  *
- * El adaptador actual lee la tabla del otro contexto directo con Prisma
- * (`infrastructure/persistence/prisma-regulatory-document-catalog.ts`). Es una
- * lectura y nada más; si algún día hiciera falta escribir, esto pasa a ser una
- * llamada a la capa de aplicación del otro contexto.
+ * The current adapter reads the other context's table directly with Prisma
+ * (`infrastructure/persistence/prisma-regulatory-document-catalog.ts`). It is a
+ * read and nothing more; if writing were ever needed, this becomes a call into
+ * the other context's application layer.
  */
 export type RegulatoryDocumentCatalog = {
   /**
-   * Devuelve los que existen. Los que no, simplemente no vienen: comparar
-   * contra lo pedido y decidir qué hacer con la diferencia es del caso de uso.
+   * Returns the ones that exist. The ones that do not simply do not come back:
+   * comparing against what was asked for and deciding what to do with the
+   * difference belongs to the use case.
    */
   findByIds(
     regulatoryDocumentIds: readonly string[],

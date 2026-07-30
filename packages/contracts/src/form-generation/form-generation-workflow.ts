@@ -5,44 +5,45 @@ import { formats } from '../formats.js';
 import { formGenerationReviewSchema } from './form-generation.js';
 
 /**
- * El contrato del otro cable.
+ * The contract of the other wire.
  *
- * Entre el back y el worker no hay HTTP: hay una cola de Temporal. Pero es una
- * frontera igual —dos procesos, dos imágenes, dos despliegues— y se rompe
- * igual de callada: si el back arranca `'generateForm'` en la cola
- * `'form-generation'` y el worker escucha `'form-generations'`, nadie falla,
- * nadie loguea nada, y el workflow se queda encolado para siempre. Por eso los
- * nombres se declaran una sola vez y acá, junto al resto de lo que cruza.
+ * There is no HTTP between the back and the worker: there is a Temporal queue.
+ * But it is a border all the same — two processes, two images, two deployments
+ * — and it breaks just as quietly: if the back starts `'generateForm'` on the
+ * `'form-generation'` queue and the worker listens on `'form-generations'`,
+ * nothing fails, nothing gets logged, and the workflow stays queued forever.
+ * That is why the names are declared once, and here, next to the rest of what
+ * crosses over.
  */
 
-/** Cola donde el back encola y el worker escucha. */
+/** Queue the back enqueues onto and the worker listens on. */
 export const formGenerationTaskQueue = 'form-generation';
 
-/** Nombre registrado del workflow (la función exportada del worker). */
+/** Registered name of the workflow (the function exported by the worker). */
 export const generateFormWorkflowType = 'generateForm';
 
-/** Señales que el back le manda a un workflow en vuelo. */
+/** Signals the back sends to an in-flight workflow. */
 export const formGenerationSignals = {
-  /** Llega cuando una persona aprueba o rechaza. Destraba la espera. */
+  /** Arrives when a person approves or rejects. Unblocks the wait. */
   review: 'review',
 } as const;
 
 /**
- * Id del workflow, derivado del id de la fila.
+ * Workflow id, derived from the row id.
  *
- * Determinista a propósito: para mandarle la señal de revisión no hace falta
- * guardar ningún `runId`, alcanza con el id que el cliente ya tiene. Y de yapa,
- * Temporal rechaza arrancar dos veces el mismo id, así que un doble disparo
- * sobre la misma solicitud no genera dos workflows.
+ * Deterministic on purpose: sending the review signal requires storing no
+ * `runId`, the id the client already has is enough. And as a bonus, Temporal
+ * refuses to start the same id twice, so a double trigger on the same request
+ * does not spawn two workflows.
  */
 export const formGenerationWorkflowId = (formGenerationId: string): string =>
   `form-generation:${formGenerationId}`;
 
-// La IIFE mantiene a TypeBox fuera del bundle del front, que importa de acá los
-// nombres de cola y señal. Ver la nota al pie de `generated-form.ts`.
+// The IIFE keeps TypeBox out of the front bundle, which imports the queue and
+// signal names from here. See the note at the bottom of `generated-form.ts`.
 const workflowRegulatoryDocumentSchema = /* @__PURE__ */ (() =>
   Type.Object({
-    /** Id nuestro, el de la tabla `regulatory_documents`. */
+    /** Our id, the one from the `regulatory_documents` table. */
     id: Type.String({ format: formats.uuid }),
     ragflowDocumentId: Type.String({ minLength: 1 }),
     ragflowDatasetId: Type.String({ minLength: 1 }),
@@ -53,17 +54,18 @@ export type WorkflowRegulatoryDocument = Static<
 >;
 
 /**
- * Lo que recibe el workflow al arrancar.
+ * What the workflow receives when it starts.
  *
- * Los documentos viajan ya resueltos —con su id de RAGFlow adentro— en vez de
- * mandar sólo los ids y que el worker los busque. Dos razones:
+ * The documents travel already resolved — with their RAGFlow id inside —
+ * instead of sending only the ids and having the worker look them up. Two
+ * reasons:
  *
- *  1. El worker no necesita leer de la base. Sus únicas sentencias son
- *     escrituras de estado, y eso achica mucho lo que se rompe el día que la
- *     tabla cambie (el esquema lo gobierna `apps/back/prisma/schema.prisma`).
- *  2. La generación queda atada a los documentos que había **al momento del
- *     pedido**. Si alguien borra o reindexa uno mientras el workflow corre, lo
- *     que se generó sigue siendo explicable.
+ *  1. The worker does not need to read from the database. Its only statements
+ *     are status writes, and that shrinks a lot of what breaks the day the
+ *     table changes (the schema is governed by `apps/back/prisma/schema.prisma`).
+ *  2. The generation stays tied to the documents that existed **at the time of
+ *     the request**. If somebody deletes or reindexes one while the workflow is
+ *     running, what was generated remains explainable.
  */
 export const generateFormWorkflowInputSchema = /* @__PURE__ */ (() =>
   Type.Object(
@@ -74,7 +76,7 @@ export const generateFormWorkflowInputSchema = /* @__PURE__ */ (() =>
     },
     {
       $id: 'GenerateFormWorkflowInput',
-      description: 'Argumento único del workflow de generación.',
+      description: 'The single argument of the generation workflow.',
     },
   ))();
 
@@ -82,7 +84,7 @@ export type GenerateFormWorkflowInput = Static<
   typeof generateFormWorkflowInputSchema
 >;
 
-/** Carga útil de la señal de revisión. Es el mismo cuerpo que recibe el back. */
+/** Payload of the review signal. Same body the back receives. */
 export const formGenerationReviewSignalSchema = formGenerationReviewSchema;
 
 export type FormGenerationReviewSignal = Static<

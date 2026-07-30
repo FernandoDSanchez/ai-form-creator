@@ -16,7 +16,7 @@ const enableApiMocking = async () => {
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
-  throw new Error('No se encontró el elemento #root en index.html');
+  throw new Error('The #root element was not found in index.html');
 }
 
 enableApiMocking().then(() => {

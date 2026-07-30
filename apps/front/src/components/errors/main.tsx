@@ -6,10 +6,10 @@ export const MainErrorFallback = () => (
     role="alert"
   >
     <h1 className="text-danger text-lg font-semibold">
-      Ups, algo salió mal :(
+      Oops, something went wrong :(
     </h1>
     <Button variant="secondary" onClick={() => window.location.assign('/')}>
-      Recargar
+      Reload
     </Button>
   </div>
 );

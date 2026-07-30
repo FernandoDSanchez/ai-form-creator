@@ -3,12 +3,12 @@ import 'dotenv/config';
 import { z } from 'zod';
 
 /**
- * Único punto del worker que lee `process.env`. Mismo criterio que el back: si
- * falta una variable, el proceso no arranca — mejor un crash al boot que
- * descubrirlo cuando el primer workflow ya consumió su reintento.
+ * The only place in the worker that reads `process.env`. Same criterion as the
+ * back: if a variable is missing, the process does not boot — better a crash at
+ * boot than finding out once the first workflow already burned its retry.
  *
- * `workflows/` tiene prohibido importar este archivo (lo verifica ESLint): en
- * el sandbox determinista no hay `process.env`.
+ * `workflows/` is forbidden from importing this file (ESLint checks it): there
+ * is no `process.env` in the deterministic sandbox.
  */
 
 const envSchema = z.object({
@@ -19,27 +19,27 @@ const envSchema = z.object({
   /** postgresql://app:…@app-postgres:5432/ai_form_creator */
   DATABASE_URL: z.string().min(1),
 
-  /** Frontend de Temporal. En el cluster: temporal-server:7233 */
+  /** Temporal frontend. In the cluster: temporal-server:7233 */
   TEMPORAL_ADDRESS: z.string().min(1),
   TEMPORAL_NAMESPACE: z.string().min(1).default('default'),
 
-  /** Proxy de modelos. En el cluster: http://litellm:4000 */
+  /** Model proxy. In the cluster: http://litellm:4000 */
   LITELLM_BASE_URL: z.url(),
 
   /**
-   * Virtual key de LiteLLM. Una por consumidor: la del worker es distinta de la
-   * que usa RAGFlow, así se rotan por separado y el gasto se atribuye solo.
+   * LiteLLM virtual key. One per consumer: the worker's differs from the one
+   * RAGFlow uses, so they rotate separately and the spend attributes itself.
    */
   LITELLM_API_KEY: z.string().min(1),
 
   /**
-   * Modelo a usar, con el prefijo de proveedor que espera LiteLLM
-   * (`gemini-flash-latest`, `anthropic/claude-sonnet-5`…). Va por env y no
-   * en el código porque cambiar de modelo no debería ser un despliegue.
+   * Model to use, with the provider prefix LiteLLM expects
+   * (`gemini-flash-latest`, `anthropic/claude-sonnet-5`…). It goes through env
+   * and not in the code because switching models should not be a deployment.
    */
   LITELLM_MODEL: z.string().min(1),
 
-  /** API HTTP de RAGFlow. En el cluster: http://ragflow:9380 */
+  /** RAGFlow HTTP API. In the cluster: http://ragflow:9380 */
   RAGFLOW_API_URL: z.url(),
   RAGFLOW_API_KEY: z.string().min(1),
   RAGFLOW_DATASET_ID: z.string().min(1),
@@ -49,7 +49,7 @@ const parsed = envSchema.safeParse(process.env);
 
 if (!parsed.success) {
   const detail = z.prettifyError(parsed.error);
-  throw new Error(`Variables de entorno inválidas:\n${detail}`);
+  throw new Error(`Invalid environment variables:\n${detail}`);
 }
 
 export const env = parsed.data;

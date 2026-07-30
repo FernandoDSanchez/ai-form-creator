@@ -1,18 +1,18 @@
 # `@ai-form-creator/worker`
 
-Worker de [Temporal](https://temporal.io). Es el único proceso que le habla al
-modelo y el único que mueve el estado de una generación de formulario.
+[Temporal](https://temporal.io) worker. It is the only process talking to the
+model and the only one moving the status of a form generation.
 
-No escucha en ningún puerto: toma trabajo de la cola `form-generation` y escribe
-en `app-postgres`. Si se cae, los workflows en vuelo no se pierden — otro worker
-toma la tarea donde quedó.
+It listens on no port: it takes work from the `form-generation` queue and writes
+to `app-postgres`. If it goes down, in-flight workflows are not lost — another
+worker picks the task up where it left off.
 
-## El pipeline
+## The pipeline
 
 ```
                                      ┌──────────────────────────┐
-POST /form-generations ──► back ─────► cola `form-generation`   │
-   (fila en PENDING)                  └───────────┬──────────────┘
+POST /form-generations ──► back ─────► `form-generation` queue  │
+   (row in PENDING)                   └───────────┬──────────────┘
                                                   │
                     ┌─────────────────────────────▼─────────────────────────┐
                     │ generateForm (workflow)                               │
@@ -22,119 +22,121 @@ POST /form-generations ──► back ─────► cola `form-generation` 
                     │      ▼        ┌─────────────────────────────┐         │
                     │  GENERATING   │ requestFormDraft → LiteLLM  │         │
                     │      │        │ validateFormDraft (schema)  │ ×3      │
-                    │  VALIDATING   │   ¿no valida? → REPAIRING,  │         │
-                    │      │        │   con los errores adentro   │         │
+                    │  VALIDATING   │   invalid? → REPAIRING,     │         │
+                    │      │        │   with the errors inside    │         │
                     │      ▼        └─────────────────────────────┘         │
-                    │  AWAITING_REVIEW  ◄── el workflow se detiene acá      │
+                    │  AWAITING_REVIEW  ◄── the workflow halts here         │
                     │      │                                                │
-                    │      │  señal `review` (la manda el back)             │
+                    │      │  `review` signal (sent by the back)            │
                     │      ▼                                                │
                     │  APPROVED / REJECTED                                  │
                     └───────────────────────────────────────────────────────┘
                                         │
-       cada cambio de estado ──► UPDATE ──► trigger ──► pg_notify
+       every status change ──► UPDATE ──► trigger ──► pg_notify
                                                             │
                                           back (LISTEN) ──► WebSocket ──► front
 ```
 
-**La IA nunca publica sola.** Toda generación se detiene en `AWAITING_REVIEW` y
-espera a una persona. Es la razón de que esto sea un workflow durable y no un
-`POST` que espera: la espera puede durar días y tiene que sobrevivir a
-despliegues.
+**The AI never publishes on its own.** Every generation halts at
+`AWAITING_REVIEW` and waits for a person. That is the reason this is a durable
+workflow and not a `POST` that waits: the wait may last days and has to survive
+deployments.
 
-## Arquitectura
+## Architecture
 
 ```
 src/
-├── config/       # env + ajustes de los adaptadores. Sólo lo lee worker.ts y activities/
-├── domain/       # puro: prompt, validación, compilador a Formily. Cero IO
-│   └── ports/    # lo que el workflow necesita del mundo, como tipo
-├── activities/   # el único lugar con red y base de datos
-├── workflows/    # determinista; sólo orquesta
-└── worker.ts     # raíz de composición
+├── config/       # env + adapter settings. Only worker.ts and activities/ read it
+├── domain/       # pure: prompt, validation, Formily compiler. Zero IO
+│   └── ports/    # what the workflow needs from the world, as a type
+├── activities/   # the only place with network and database
+├── workflows/    # deterministic; it only orchestrates
+└── worker.ts     # composition root
 ```
 
-Las capas están **forzadas por ESLint** (`eslint.config.mjs`), igual que en las
-otras dos apps. Y no es un gusto: se las impone Temporal.
+The layers are **enforced by ESLint** (`eslint.config.mjs`), just like in the
+other two apps. And it is not a taste: Temporal imposes them.
 
-El código de un workflow corre en un sandbox determinista y se **reejecuta de
-cero** cada vez que el worker se reinicia o se reemplaza. Ahí adentro no hay
-red, ni disco, ni `process.env`, y cualquier cosa que dé un resultado distinto
-en la segunda corrida rompe la ejecución. Un import equivocado no falla al
-compilar: falla en producción, en una reejecución, con un `Nondeterminism error`
-a los tres días.
+Workflow code runs in a deterministic sandbox and is **re-executed from
+scratch** every time the worker restarts or is replaced. In there is no network,
+no disk, no `process.env`, and anything returning a different result on the
+second run breaks the execution. A wrong import does not fail at compile time:
+it fails in production, on a re-execution, with a `Nondeterminism error` three
+days later.
 
-De ahí salen las tres reglas:
+That is where the three rules come from:
 
-| Desde ↓ / Hacia → | `domain` | `activities` | `config` | `pg`, `node:*` |
-| ----------------- | :------: | :----------: | :------: | :------------: |
-| `domain`          |    ✅    |      ❌      |    ❌    |       ❌       |
-| `workflows`       |    ✅    |      ❌      |    ❌    |       ❌       |
-| `activities`      |    ✅    |      ✅      |    ✅    |       ✅       |
+| From ↓ / To → | `domain` | `activities` | `config` | `pg`, `node:*` |
+| ------------- | :------: | :----------: | :------: | :------------: |
+| `domain`      |    ✅    |      ❌      |    ❌    |       ❌       |
+| `workflows`   |    ✅    |      ❌      |    ❌    |       ❌       |
+| `activities`  |    ✅    |      ✅      |    ✅    |       ✅       |
 
-El workflow no puede importar `activities/`, así que habla con ellas por un
-puerto (`domain/ports/form-generation-activities.port.ts`) que resuelve
-`proxyActivities`. Es la misma inversión de dependencias que el back, y acá
-además es lo que Temporal quiere.
+The workflow cannot import `activities/`, so it talks to them through a port
+(`domain/ports/form-generation-activities.port.ts`) that `proxyActivities`
+resolves. It is the same dependency inversion as the back, and here it is also
+what Temporal wants.
 
-### Por qué la validación es una actividad
+### Why validation is an activity
 
-`validateGeneratedForm` es una función pura: no toca nada de afuera y podría
-llamarse derecho desde el workflow. Está envuelta en una actividad igual, y el
-motivo es la espera de revisión.
+`validateGeneratedForm` is a pure function: it touches nothing outside and could
+be called straight from the workflow. It is wrapped in an activity anyway, and
+the reason is the review wait.
 
-Un workflow puede quedarse 30 días detenido, y en esos 30 días se va a desplegar
-código nuevo. Al reejecutarse, todo lo que esté **en** el workflow corre otra vez
-con la versión nueva; si para entonces el schema cambió y lo que antes validaba
-ahora no, el workflow tomaría un camino distinto al que ya está grabado en el
-historial y Temporal lo mataría. El resultado de una actividad, en cambio, queda
-grabado: se relee, no se recalcula.
+A workflow can stay halted for 30 days, and in those 30 days new code will be
+deployed. On re-execution, everything **inside** the workflow runs again with
+the new version; if by then the schema changed and what used to validate no
+longer does, the workflow would take a path different from the one already
+recorded in the history and Temporal would kill it. An activity result, by
+contrast, is recorded: it is re-read, not recomputed.
 
-## Comandos
+## Commands
 
-| Comando               | Qué hace                               |
-| --------------------- | -------------------------------------- |
-| `npm run dev`         | Worker con `ts-node`, contra el `.env` |
-| `npm run lint`        | ESLint con 0 tolerancia a warnings     |
-| `npm run check-types` | `tsc --noEmit`                         |
-| `npm test`            | Jest (dominio puro, sin red ni base)   |
-| `npm run build`       | `tsc` a `dist/`                        |
+| Command               | What it does                                |
+| --------------------- | ------------------------------------------- |
+| `npm run dev`         | Worker with `ts-node`, against `.env`       |
+| `npm run lint`        | ESLint with zero tolerance for warnings     |
+| `npm run check-types` | `tsc --noEmit`                              |
+| `npm test`            | Jest (pure domain, no network, no database) |
+| `npm run build`       | `tsc` into `dist/`                          |
 
-En un clone nuevo hay que compilar los contratos antes: `npm run contracts:build`.
+In a fresh clone the contracts have to be compiled first:
+`npm run contracts:build`.
 
-## Cosas que muerden
+## Things that bite
 
-**No uses Alpine.** El SDK de Temporal trae su núcleo en Rust como binario
-nativo y sólo publica prebuilds para glibc. Sobre musl `npm ci` no falla y la
-imagen construye entera; lo que revienta es el arranque, con un error de módulo
-nativo que no menciona a musl por ningún lado. Por eso el `Dockerfile` usa
-`node:24-bookworm-slim` y no `node:24-alpine` como las otras dos.
+**Do not use Alpine.** The Temporal SDK carries its core in Rust as a native
+binary and only publishes prebuilds for glibc. On musl `npm ci` does not fail
+and the image builds end to end; what blows up is the startup, with a native
+module error that never mentions musl anywhere. That is why the `Dockerfile`
+uses `node:24-bookworm-slim` and not `node:24-alpine` like the other two.
 
-**El esquema de la base no es de acá.** Lo gobierna
-`apps/back/prisma/schema.prisma` y las migraciones las corre el back. El worker
-sólo escribe, con SQL a mano, y todos los nombres de tabla y columna viven en
-`activities/form-generation-store.ts`. Si la tabla cambia, cambia ese archivo.
+**The database schema does not belong here.** It is governed by
+`apps/back/prisma/schema.prisma` and the migrations are run by the back. The
+worker only writes, with hand-written SQL, and every table and column name lives
+in `activities/form-generation-store.ts`. If the table changes, that file
+changes.
 
-**`updated_at` se escribe a mano.** En el esquema es `@updatedAt`, que Prisma
-resuelve en el cliente: la columna no tiene trigger ni default. Como el worker
-no pasa por Prisma, si no la tocara se quedaría con la hora del alta durante
-todo el pipeline.
+**`updated_at` is written by hand.** In the schema it is `@updatedAt`, which
+Prisma resolves on the client: the column has neither a trigger nor a default.
+Since the worker does not go through Prisma, if it did not touch it the column
+would keep the insertion time for the whole pipeline.
 
-**El bundle del workflow pesa ~2.6 MB** porque los módulos de contratos que
-importa declaran schemas de TypeBox, y el build CJS no se puede sacudir como el
-ESM que consume el front. Se paga una vez al arrancar el worker (con
-`reuseV8Context`, que es el default, el contexto se comparte entre workflows).
-Partir el paquete en «constantes» y «schemas» lo arreglaría a costa de duplicar
-un archivo por concepto; hoy no vale la pena.
+**The workflow bundle weighs ~2.6 MB** because the contract modules it imports
+declare TypeBox schemas, and the CJS build cannot be tree-shaken like the ESM
+the front consumes. It is paid once when the worker starts (with
+`reuseV8Context`, which is the default, the context is shared between
+workflows). Splitting the package into "constants" and "schemas" would fix it at
+the cost of duplicating one file per concept; today it is not worth it.
 
-## Ver qué está pasando
+## Seeing what is going on
 
-La UI de Temporal muestra cada workflow, en qué actividad está, cuántas veces se
-reintentó y con qué error. Es el lugar donde mirar cuando una generación se
-queda trabada:
+The Temporal UI shows every workflow, which activity it is on, how many times it
+was retried and with which error. It is the place to look when a generation gets
+stuck:
 
 ```
 kubectl -n ai-form-creator port-forward svc/temporal-ui-svc 8080:8080
 ```
 
-o el Ingress que ya está puesto (`temporal.<host>`).
+or the Ingress that is already set up (`temporal.<host>`).

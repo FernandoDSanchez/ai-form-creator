@@ -1,38 +1,38 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 /**
- * Estados del pipeline de ingesta.
+ * Ingestion pipeline statuses.
  *
- * Objeto `as const` en vez de `enum` (`CLAUDE.md` §2): ni el dominio del back
- * depende del enum que genera Prisma, ni el front tiene que repetir los
- * literales para mapear estado → variante visual.
+ * An `as const` object instead of an `enum` (`CLAUDE.md` §2): the back domain
+ * does not depend on the enum Prisma generates, and the front does not have to
+ * repeat the literals to map status → visual variant.
  */
 export const regulatoryDocumentStatuses = {
-  /** Ya está en RAGFlow, todavía no lo procesó nadie. Estado inicial. */
+  /** Already in RAGFlow, nobody has processed it yet. Initial status. */
   pending: 'PENDING',
-  /** El workflow lo tomó y está parseando/indexando. */
+  /** The workflow picked it up and is parsing/indexing it. */
   processing: 'PROCESSING',
-  /** Chunks disponibles para recuperación. */
+  /** Chunks available for retrieval. */
   indexed: 'INDEXED',
-  /** El pipeline falló; requiere intervención. */
+  /** The pipeline failed; needs intervention. */
   failed: 'FAILED',
 } as const;
 
 /**
- * El mismo objeto, visto como schema. `Type.Enum` deriva el `anyOf` de los
- * valores, así que agregar un estado arriba lo agrega también acá: no hay dos
- * listas que se puedan desincronizar.
+ * The same object, seen as a schema. `Type.Enum` derives the `anyOf` from the
+ * values, so adding a status above adds it here too: there are no two lists
+ * that can drift apart.
  *
- * El `@__PURE__` no es decorativo: sin él, el bundler ve una llamada a función
- * en el tope del módulo, asume que puede tener efectos y se trae TypeBox
- * entero al bundle del front aunque sólo se haya importado el objeto de
- * arriba. Con la anotación, si nadie usa el schema, la llamada se descarta.
+ * The `@__PURE__` is not decorative: without it the bundler sees a function
+ * call at module top level, assumes it may have side effects and pulls all of
+ * TypeBox into the front bundle even when only the object above was imported.
+ * With the annotation, if nobody uses the schema the call is dropped.
  */
 export const regulatoryDocumentStatusSchema = /* @__PURE__ */ Type.Enum(
   regulatoryDocumentStatuses,
   {
     $id: 'RegulatoryDocumentStatus',
-    description: 'Estado del pipeline de ingesta del documento.',
+    description: 'Status of the document ingestion pipeline.',
   },
 );
 

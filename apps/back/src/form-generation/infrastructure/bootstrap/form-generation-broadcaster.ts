@@ -9,16 +9,16 @@ import {
 import { BroadcastFormGenerationChangesUseCase } from '../../application/broadcast-form-generation-changes.use-case';
 
 /**
- * Lo único que hace este archivo es apretar el botón de arranque del caso de
- * uso que une el change feed con el gateway.
+ * All this file does is press the start button of the use case joining the
+ * change feed with the gateway.
  *
- * Existe porque el caso de uso no puede hacerlo solo: no conoce Nest, así que
- * no tiene forma de enterarse de cuándo la app terminó de levantar. Ese
- * conocimiento es infraestructura, y vive acá.
+ * It exists because the use case cannot do it on its own: it does not know
+ * Nest, so it has no way of finding out when the app finished booting. That
+ * knowledge is infrastructure, and it lives here.
  *
- * `OnApplicationBootstrap` y no `OnModuleInit`: el segundo corre mientras los
- * módulos todavía se están inicializando, y el gateway de socket.io podría no
- * tener servidor asignado. El primero corre cuando ya está todo en pie.
+ * `OnApplicationBootstrap` and not `OnModuleInit`: the latter runs while the
+ * modules are still initialising, and the socket.io gateway might not have a
+ * server assigned. The former runs once everything is up.
  */
 @Injectable()
 export class FormGenerationBroadcaster
@@ -33,7 +33,7 @@ export class FormGenerationBroadcaster
 
   onApplicationBootstrap(): void {
     this.broadcastChanges.start();
-    this.logger.log('Publicando cambios de generación por WebSocket');
+    this.logger.log('Publishing generation changes over WebSocket');
   }
 
   onApplicationShutdown(): void {

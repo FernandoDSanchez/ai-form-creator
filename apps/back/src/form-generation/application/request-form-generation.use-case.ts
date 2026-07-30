@@ -8,23 +8,24 @@ import type { FormGenerationRepository } from '../domain/ports/form-generation-r
 import type { RegulatoryDocumentCatalog } from '../domain/ports/regulatory-document-catalog.port';
 
 /**
- * Fase síncrona del pedido de generación.
+ * Synchronous phase of the generation request.
  *
- * Clase pelada, sin `@Injectable()`: la aplicación no conoce Nest. El módulo la
- * instancia con un `useFactory` y su test se escribe con tres dobles.
+ * A bare class, with no `@Injectable()`: the application does not know Nest. The
+ * module instantiates it with a `useFactory` and its test is written with three
+ * doubles.
  *
- * El orden es deliberado:
+ * The order is deliberate:
  *
- *   1. **Resolver los documentos primero.** Es la única validación que necesita
- *      la base, y hacerla antes de escribir evita dejar filas PENDING que
- *      referencian documentos inexistentes.
- *   2. **Después la fila.** Nace en PENDING y con `attempts` en 0.
- *   3. **Y recién ahí el disparo.** Si Temporal no responde, la fila ya existe
- *      y el error se traduce a 502: el pedido está registrado y se puede
- *      reintentar, en vez de perderse.
+ *   1. **Resolve the documents first.** It is the only validation needing the
+ *      database, and doing it before writing avoids leaving PENDING rows
+ *      referencing non-existent documents.
+ *   2. **Then the row.** It is born as PENDING and with `attempts` at 0.
+ *   3. **And only then the trigger.** If Temporal does not answer, the row
+ *      already exists and the error translates into a 502: the request is
+ *      recorded and can be retried, instead of being lost.
  *
- * Si se hiciera al revés —disparar y después escribir— el worker podría llegar
- * a la primera actividad antes de que exista la fila que tiene que actualizar.
+ * Done the other way around — trigger first, write after — the worker could
+ * reach the first activity before the row it has to update exists.
  */
 export class RequestFormGenerationUseCase {
   constructor(
@@ -49,8 +50,9 @@ export class RequestFormGenerationUseCase {
 
     const formGeneration = await this.formGenerations.create(request);
 
-    // El workflow recibe los documentos ya resueltos: no vuelve a leer la base.
-    // Ver `generateFormWorkflowInputSchema` en el paquete de contratos.
+    // The workflow receives the documents already resolved: it does not read
+    // the database again. See `generateFormWorkflowInputSchema` in the
+    // contracts package.
     await this.orchestrator.start({
       formGenerationId: formGeneration.id,
       prompt: formGeneration.prompt,

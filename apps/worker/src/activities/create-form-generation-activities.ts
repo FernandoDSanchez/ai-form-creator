@@ -11,16 +11,16 @@ import { requestFormDraft } from './litellm-client';
 import { retrieveRegulatoryContext } from './ragflow-retrieval';
 
 /**
- * Los adaptadores del worker, atados al puerto que declara `domain/ports/`.
+ * The worker adapters, tied to the port `domain/ports/` declares.
  *
- * Es una fábrica y no un objeto suelto para que el pool de Postgres llegue por
- * parámetro: así el que decide cuándo se abre y cuándo se cierra es
- * `worker.ts`, que es la raíz de composición — mismo criterio que los
- * `useFactory` del back.
+ * It is a factory and not a loose object so the Postgres pool arrives as a
+ * parameter: that way the one deciding when it opens and when it closes is
+ * `worker.ts`, which is the composition root — same criterion as the back's
+ * `useFactory` providers.
  *
- * Las funciones son finitas y aburridas a propósito. Cada una traduce entre el
- * puerto y un adaptador, y ninguna decide nada: lo que hay que decidir está en
- * `domain/`, y cuándo hacerlo está en el workflow.
+ * The functions are small and boring on purpose. Each one translates between
+ * the port and an adapter, and none of them decides anything: what has to be
+ * decided is in `domain/`, and when to do it is in the workflow.
  */
 export const createFormGenerationActivities = (
   store: FormGenerationStore,
@@ -36,8 +36,8 @@ export const createFormGenerationActivities = (
 
   requestFormDraft,
 
-  // Pura, envuelta en actividad por determinismo. El porqué largo está en el
-  // puerto, junto a la firma.
+  // Pure, wrapped in an activity for determinism. The long why is in the port,
+  // next to the signature.
   validateFormDraft: ({ raw }): Promise<FormDraftValidation> =>
     Promise.resolve(validateGeneratedForm(raw)),
 

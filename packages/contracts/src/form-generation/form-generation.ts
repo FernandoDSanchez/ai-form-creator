@@ -10,12 +10,12 @@ import { formilyFormSchema } from './formily-form-schema.js';
 import { generatedFormSchema } from './generated-form.js';
 
 /**
- * Una solicitud de generación: el pedido en lenguaje natural, los documentos
- * que le dan contexto, y todo lo que el pipeline fue dejando encima.
+ * A generation request: the natural language ask, the documents giving it
+ * context, and everything the pipeline piled on top.
  *
- * Igual que `RegulatoryDocument`, las fechas viajan como string ISO 8601: lo
- * que cruza el cable es JSON. La conversión pasa una sola vez, en el mapper de
- * Prisma del back.
+ * Just like `RegulatoryDocument`, dates travel as ISO 8601 strings: what
+ * crosses the wire is JSON. The conversion happens exactly once, in the back's
+ * Prisma mapper.
  */
 
 const PROMPT_MIN_LENGTH = 10;
@@ -24,12 +24,12 @@ const MAX_REGULATORY_DOCUMENTS = 5;
 const REVIEWER_NOTE_MAX_LENGTH = 1000;
 
 /**
- * Límites del pedido. Los usan las tres puntas: el `maxLength` del textarea del
- * front, el DTO del back y el mensaje de error. Un solo número.
+ * Limits of the request. All three ends use them: the `maxLength` of the front
+ * textarea, the back DTO and the error message. A single number.
  *
- * El tope de documentos no es capricho: cada uno suma chunks al contexto que
- * viaja en el prompt, y a partir de cierto punto el modelo empieza a ignorar
- * los del medio.
+ * The document cap is not arbitrary: each one adds chunks to the context that
+ * travels in the prompt, and past a certain point the model starts ignoring
+ * the ones in the middle.
  */
 export const formGenerationLimits = {
   promptMinLength: PROMPT_MIN_LENGTH,
@@ -38,25 +38,25 @@ export const formGenerationLimits = {
   reviewerNoteMaxLength: REVIEWER_NOTE_MAX_LENGTH,
 } as const;
 
-// La IIFE evita que las llamadas anidadas retengan TypeBox en el bundle del
-// front, que importa de este módulo sólo `formGenerationLimits`. Ver la nota al
-// pie de `generated-form.ts`.
+// The IIFE keeps the nested calls from retaining TypeBox in the front bundle,
+// which imports only `formGenerationLimits` from this module. See the note at
+// the bottom of `generated-form.ts`.
 export const formGenerationSchema = /* @__PURE__ */ (() =>
   Type.Object(
     {
       id: Type.String({ format: formats.uuid }),
 
-      /** El pedido, tal cual lo escribió la persona. */
+      /** The ask, exactly as the person wrote it. */
       prompt: Type.String({
         minLength: PROMPT_MIN_LENGTH,
         maxLength: PROMPT_MAX_LENGTH,
       }),
 
       /**
-       * Documentos elegidos, por su id **nuestro** (no el de RAGFlow).
+       * Chosen documents, by **our** id (not the RAGFlow one).
        *
-       * Puede venir vacío: generar sin documentos es válido, sale un formulario
-       * apoyado sólo en el vocabulario y en el pedido.
+       * It may come in empty: generating without documents is valid, and
+       * produces a form leaning only on the vocabulary and on the ask.
        */
       regulatoryDocumentIds: Type.Array(Type.String({ format: formats.uuid }), {
         maxItems: MAX_REGULATORY_DOCUMENTS,
@@ -64,19 +64,19 @@ export const formGenerationSchema = /* @__PURE__ */ (() =>
 
       status: formGenerationStatusSchema,
 
-      /** Cuántas veces se le pidió el formulario al modelo. Arranca en 0. */
+      /** How many times the form was asked of the model. Starts at 0. */
       attempts: Type.Integer({ minimum: 0 }),
 
-      /** Lo que devolvió el modelo y pasó la validación. `null` hasta entonces. */
+      /** What the model returned and passed validation. `null` until then. */
       draft: Type.Union([generatedFormSchema, Type.Null()]),
 
-      /** El borrador compilado. Es lo que renderiza el front. */
+      /** The compiled draft. This is what the front renders. */
       formilySchema: Type.Union([formilyFormSchema, Type.Null()]),
 
-      /** Por qué se cayó, en castellano. Sólo con estado FAILED. */
+      /** Why it fell over, in plain words. Only with status FAILED. */
       failureReason: Type.Union([Type.String(), Type.Null()]),
 
-      /** Comentario de quien revisó. */
+      /** The reviewer's comment. */
       reviewerNote: Type.Union([Type.String(), Type.Null()]),
 
       reviewedAt: Type.Union([
@@ -89,17 +89,17 @@ export const formGenerationSchema = /* @__PURE__ */ (() =>
     },
     {
       $id: 'FormGeneration',
-      description: 'Solicitud de generación de un formulario y su estado.',
+      description: 'A form generation request and its status.',
     },
   ))();
 
 export type FormGeneration = Static<typeof formGenerationSchema>;
 
 /**
- * El cuerpo del `POST /form-generations`: lo único que aporta el cliente.
+ * The body of `POST /form-generations`: the only thing the client provides.
  *
- * Se deriva con `Type.Pick` en vez de redeclararse, así un cambio en el límite
- * del prompt llega solo a las dos puntas.
+ * It is derived with `Type.Pick` instead of redeclared, so a change in the
+ * prompt limit reaches both ends on its own.
  */
 export const newFormGenerationSchema = /* @__PURE__ */ Type.Pick(
   formGenerationSchema,
@@ -109,7 +109,7 @@ export const newFormGenerationSchema = /* @__PURE__ */ Type.Pick(
 
 export type NewFormGeneration = Static<typeof newFormGenerationSchema>;
 
-/** El cuerpo del `POST /form-generations/:id/review`. */
+/** The body of `POST /form-generations/:id/review`. */
 export const formGenerationReviewSchema = /* @__PURE__ */ (() =>
   Type.Object(
     {
@@ -118,7 +118,7 @@ export const formGenerationReviewSchema = /* @__PURE__ */ (() =>
     },
     {
       $id: 'FormGenerationReview',
-      description: 'Veredicto humano sobre un formulario generado.',
+      description: 'Human verdict on a generated form.',
     },
   ))();
 

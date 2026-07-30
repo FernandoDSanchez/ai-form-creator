@@ -13,9 +13,9 @@ import type {
 } from '../types/form-generation';
 
 /**
- * Manda el pedido. Responde 202: la solicitud quedó escrita en PENDING y el
- * workflow arrancó, pero todavía no hay ningún formulario. Lo que vuelve sirve
- * para saber a qué id hay que quedarse escuchando.
+ * Sends the request. It answers 202: the request is written as PENDING and the
+ * workflow started, but there is no form yet. What comes back is what tells you
+ * which id to keep listening to.
  */
 export const requestFormGeneration = (
   request: NewFormGeneration,
@@ -35,9 +35,9 @@ export const useRequestFormGeneration = ({
   return useMutation({
     mutationFn: requestFormGeneration,
     onSuccess: (formGeneration, ...rest) => {
-      // Se siembra el detalle con lo que devolvió el POST: al navegar a la
-      // pantalla de seguimiento ya hay estado que mostrar, sin un parpadeo de
-      // spinner por un GET que trae exactamente lo mismo.
+      // The detail is seeded with what the POST returned: navigating to the
+      // tracking screen there is already state to show, with no spinner flicker
+      // from a GET bringing exactly the same thing.
       queryClient.setQueryData(
         formGenerationQueryKeys.detail(formGeneration.id),
         formGeneration,

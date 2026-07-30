@@ -1,22 +1,22 @@
 import type { FormGenerationStatus } from '../form-generation-status';
 
-/** Lo que trae el aviso de Postgres: el id y el estado nuevo, nada más. */
+/** What the Postgres notification carries: the id and the new status, nothing else. */
 export type FormGenerationChange = {
   formGenerationId: string;
   status: FormGenerationStatus;
 };
 
 /**
- * Puerto de **entrada** invertido: el mundo avisa que algo cambió.
+ * An inverted **inbound** port: the world says something changed.
  *
- * Hace falta porque quien mueve los estados es otro proceso (el worker), así
- * que el back no puede enterarse por sus propios casos de uso. El adaptador
- * actual es `LISTEN` de Postgres
- * (`infrastructure/persistence/postgres-form-generation-change-feed.ts`); podría
- * ser una cola sin que cambie nada del núcleo.
+ * It is needed because the one moving the statuses is another process (the
+ * worker), so the back cannot find out through its own use cases. The current
+ * adapter is Postgres `LISTEN`
+ * (`infrastructure/persistence/postgres-form-generation-change-feed.ts`); it
+ * could be a queue without anything in the core changing.
  *
- * Devuelve una función para desuscribirse: el que la llama es el que sabe
- * cuándo dejar de escuchar, y sin eso el shutdown deja callbacks colgando.
+ * It returns an unsubscribe function: the caller is the one who knows when to
+ * stop listening, and without that the shutdown leaves callbacks dangling.
  */
 export type FormGenerationChangeFeed = {
   onChange(listener: (change: FormGenerationChange) => void): () => void;

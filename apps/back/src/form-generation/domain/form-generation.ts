@@ -1,14 +1,14 @@
 /**
- * La puerta del núcleo a la entidad.
+ * The core's door to the entity.
  *
- * No se declara acá: vive en `@ai-form-creator/contracts`, el mismo schema que
- * consume el front y con el que el worker valida lo que devuelve el modelo.
- * Este archivo sólo la expone hacia adentro, igual que
+ * It is not declared here: it lives in `@ai-form-creator/contracts`, the same
+ * schema the front consumes and the one the worker validates the model's answer
+ * against. This file only exposes it inwards, just like
  * `regulatory-documents/domain/regulatory-document.ts`.
  *
- * Que el contrato sea compartido no lo vuelve infraestructura: es un paquete
- * sin framework, sin ORM y sin HTTP, así que el dominio puede mirarlo sin
- * romper la regla de dependencias hacia adentro (`CLAUDE.md` §9).
+ * A shared contract does not turn into infrastructure: it is a package with no
+ * framework, no ORM and no HTTP, so the domain can look at it without breaking
+ * the inward dependency rule (`CLAUDE.md` §9).
  */
 export type {
   FormGeneration,

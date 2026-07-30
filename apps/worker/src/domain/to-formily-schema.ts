@@ -12,14 +12,14 @@ import type {
 } from '@ai-form-creator/contracts/form-generation/generated-form';
 
 /**
- * Compila el borrador validado a JSON de Formily.
+ * Compiles the validated draft into Formily JSON.
  *
- * Todo lo mecánico del formato vive acá y no en el prompt: el `type` del valor,
- * el decorador, dónde va el `placeholder`, dónde va la ayuda. Nada de eso es
- * una decisión de negocio, así que no hay motivo para que lo acierte un modelo
- * —ni para gastar un reintento cuando no lo acierta—.
+ * Everything mechanical about the format lives here and not in the prompt: the
+ * value `type`, the decorator, where the `placeholder` goes, where the help
+ * goes. None of that is a business decision, so there is no reason for a model
+ * to have to get it right — nor to spend a retry when it does not.
  *
- * Pura. El test compara estructuras, sin renderizar nada.
+ * Pure. The test compares structures, without rendering anything.
  */
 export const toFormilySchema = (draft: GeneratedForm): FormilyFormSchema => ({
   type: 'object',
@@ -29,15 +29,15 @@ export const toFormilySchema = (draft: GeneratedForm): FormilyFormSchema => ({
 });
 
 const toFormilyField = (field: GeneratedFormField): FormilyFieldSchema => ({
-  // El tipo del valor lo decide el componente, no el modelo: un CheckboxField
-  // guarda un booleano y un NumberField un número, siempre.
+  // The value type is decided by the component, not by the model: a
+  // CheckboxField stores a boolean and a NumberField a number, always.
   type: formFieldValueTypes[field.component],
   title: field.title,
   required: field.isRequired,
-  // Las cadenas y arreglos vacíos son la forma que tiene el structured output
-  // de decir «no aplica» (ver `generated-form.ts`). Acá se vuelven ausencia:
-  // un `x-component-props` con `placeholder: ''` le pondría un placeholder
-  // vacío al input en vez de no ponerle ninguno.
+  // Empty strings and arrays are how the structured output says "not
+  // applicable" (see `generated-form.ts`). Here they become absence: an
+  // `x-component-props` with `placeholder: ''` would give the input an empty
+  // placeholder instead of none at all.
   ...(field.options.length > 0 ? { enum: field.options } : {}),
   ...(field.placeholder.length > 0
     ? { 'x-component-props': { placeholder: field.placeholder } }

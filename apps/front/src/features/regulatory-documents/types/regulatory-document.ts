@@ -1,14 +1,14 @@
 import type { RegulatoryDocument } from '@ai-form-creator/contracts/regulatory-documents/regulatory-document';
 
 /**
- * Tipos de la feature. La entidad no se declara acá: viene de
- * `@ai-form-creator/contracts`, el mismo schema TypeBox que usa el dominio del
- * back. Este archivo es sólo la puerta de la feature, igual que
- * `domain/regulatory-document.ts` del lado del back.
+ * Feature types. The entity is not declared here: it comes from
+ * `@ai-form-creator/contracts`, the same TypeBox schema the back domain uses.
+ * This file is only the feature's door, just like `domain/regulatory-document.ts`
+ * on the back side.
  *
- * Se reexporta el tipo y no el schema a propósito: los `Static<>` se borran al
- * compilar, mientras que importar el schema traería TypeBox al bundle sin que
- * el front lo necesite para nada.
+ * The type is re-exported and not the schema on purpose: the `Static<>` are
+ * erased at compile time, whereas importing the schema would bring TypeBox into
+ * the bundle without the front needing it for anything.
  */
 export type {
   RegulatoryDocument,
@@ -21,16 +21,17 @@ export {
 } from '@ai-form-creator/contracts/regulatory-documents/regulatory-document-status';
 
 /**
- * Lo que devuelve `POST /regulatory-documents` con su 202.
+ * What `POST /regulatory-documents` returns with its 202.
  *
- * No es la entidad entera: el back expone una vista más chica (ver
- * `infrastructure/http/dto/regulatory-document.response.ts`), sin `mimeType`
- * —que el cliente ya conoce, lo acaba de subir— ni `updatedAt` —que en el alta
- * siempre es igual a `createdAt`—.
+ * It is not the whole entity: the back exposes a smaller view (see
+ * `infrastructure/http/dto/regulatory-document.response.ts`), without
+ * `mimeType` — which the client already knows, it just uploaded it — and
+ * without `updatedAt` — which on upload is always equal to `createdAt`.
  *
- * Se deriva con `Omit` en vez de escribirse a mano: si al contrato le cambia
- * un campo, esto se entera. Si algún día el back publica más endpoints de
- * documentos, conviene subir esta forma al paquete y borrar el `Omit`.
+ * It is derived with `Omit` instead of written by hand: if a contract field
+ * changes, this finds out. If one day the back publishes more document
+ * endpoints, it is worth moving this shape up to the package and deleting the
+ * `Omit`.
  */
 export type AcceptedRegulatoryDocument = Omit<
   RegulatoryDocument,

@@ -21,21 +21,21 @@ import { generationPolicy } from '../domain/generation-policy';
 import type { FormGenerationActivities } from '../domain/ports/form-generation-activities.port';
 
 /**
- * El pipeline completo, visto desde arriba.
+ * The complete pipeline, seen from above.
  *
  *   RETRIEVING → (GENERATING → VALIDATING → REPAIRING)* → AWAITING_REVIEW
  *                                                       → APPROVED | REJECTED
  *                                                       └→ FAILED
  *
- * Este archivo no hace nada: decide en qué orden se hacen las cosas y qué pasa
- * cuando algo sale mal. Toda la sustancia está en las actividades, que corren
- * afuera del sandbox y pueden tocar la red y la base.
+ * This file does nothing: it decides in which order things happen and what
+ * happens when something goes wrong. All the substance is in the activities,
+ * which run outside the sandbox and may touch the network and the database.
  *
- * Lo que sí aporta —y no se puede conseguir de otra forma— es durabilidad. El
- * bucle de reintentos, la espera de 30 días por una firma humana y el estado
- * de cada solicitud sobreviven a que el pod se reinicie, se reemplace o se
- * caiga a la mitad. Sin esto, la espera por revisión sería una fila en una
- * tabla y un cron mirándola.
+ * What it does contribute — and cannot be obtained any other way — is
+ * durability. The retry loop, the 30-day wait for a human signature and the
+ * status of every request survive the pod restarting, being replaced or dying
+ * halfway. Without this, waiting for review would be a row in a table and a
+ * cron staring at it.
  */
 
 const activities = proxyActivities<FormGenerationActivities>({
@@ -44,9 +44,9 @@ const activities = proxyActivities<FormGenerationActivities>({
 });
 
 /**
- * Las que salen a la red van con su propio timeout. Un mismo `proxyActivities`
- * para todo obligaría a usar el más largo en todas, y una escritura en
- * Postgres colgada se descubriría cinco minutos tarde.
+ * The ones going out to the network get their own timeout. A single
+ * `proxyActivities` for everything would force using the longest one
+ * everywhere, and a hung Postgres write would be discovered five minutes late.
  */
 const retrieval = proxyActivities<
   Pick<FormGenerationActivities, 'retrieveRegulatoryContext'>
@@ -67,15 +67,15 @@ export const reviewSignal = defineSignal<[FormGenerationReviewSignal]>(
 );
 
 /**
- * Punto de entrada. Lo único que agrega sobre `runGeneration` es la garantía de
- * que la solicitud **nunca queda en un estado intermedio**.
+ * Entry point. The only thing it adds over `runGeneration` is the guarantee
+ * that the request **never stays in an intermediate state**.
  *
- * Sin esto, cualquier error que las actividades no puedan reintentar —LiteLLM
- * devolviendo 404 porque retiraron el modelo, por ejemplo— hace fallar el
- * workflow con la fila todavía en GENERATING. Temporal lo registra y se ve en
- * su UI, pero la base no se entera: no hay cambio de estado, no hay `NOTIFY`, y
- * el front se queda esperando para siempre un avance que no va a llegar. La
- * persona ve «Redactando…» hasta que cierre la pestaña.
+ * Without this, any error the activities cannot retry — LiteLLM returning a 404
+ * because the model was withdrawn, for instance — fails the workflow with the
+ * row still in GENERATING. Temporal records it and it shows in its UI, but the
+ * database never finds out: no status change, no `NOTIFY`, and the front waits
+ * forever for progress that will never come. The person sees "Drafting…" until
+ * they close the tab.
  */
 export async function generateForm(
   input: GenerateFormWorkflowInput,
@@ -83,9 +83,9 @@ export async function generateForm(
   try {
     return await runGeneration(input);
   } catch (error) {
-    // `nonCancellable` porque esto también tiene que correr cuando lo que
-    // interrumpió al workflow fue una cancelación: si la escritura se cancela
-    // con el resto, se pierde justo el aviso que hacía falta dar.
+    // `nonCancellable` because this also has to run when what interrupted the
+    // workflow was a cancellation: if the write is cancelled along with the
+    // rest, the very notification that had to be given is lost.
     await CancellationScope.nonCancellable(() =>
       activities.failFormGeneration({
         formGenerationId: input.formGenerationId,
@@ -93,20 +93,19 @@ export async function generateForm(
       }),
     );
 
-    // Se relanza a propósito: la fila ya dice FAILED para el front, y el
-    // workflow tiene que quedar como fallido en Temporal para que el error
-    // completo siga estando donde se lo investiga.
+    // It is rethrown on purpose: the row already says FAILED for the front, and
+    // the workflow has to end up as failed in Temporal so the complete error
+    // stays where it gets investigated.
     throw error;
   }
 }
 
 /**
- * Desenvuelve la causa raíz de un error.
+ * Unwraps the root cause of an error.
  *
- * Temporal envuelve lo que tira una actividad en un `ActivityFailure`, cuyo
- * mensaje es siempre «Activity task failed» — inservible para mostrárselo a
- * alguien. El motivo de verdad está unos niveles más abajo en la cadena de
- * `cause`.
+ * Temporal wraps whatever an activity throws in an `ActivityFailure`, whose
+ * message is always "Activity task failed" — useless for showing to somebody.
+ * The real reason is a few levels down the `cause` chain.
  */
 const describeFailure = (error: unknown): string => {
   let current: unknown = error;
@@ -121,7 +120,7 @@ const describeFailure = (error: unknown): string => {
     return current.message;
   }
 
-  return typeof current === 'string' ? current : 'Error desconocido';
+  return typeof current === 'string' ? current : 'Unknown error';
 };
 
 async function runGeneration(
@@ -130,19 +129,18 @@ async function runGeneration(
   const { formGenerationId } = input;
 
   /**
-   * El veredicto va dentro de un objeto y no en un `let` suelto por una razón
-   * de TypeScript, no de Temporal: el compilador no sigue las asignaciones que
-   * ocurren dentro de un callback, así que después del `condition` seguiría
-   * creyendo que un `let` vale `null`. Leyendo una propiedad, el estrechamiento
-   * funciona.
+   * The verdict goes inside an object and not in a loose `let` for a TypeScript
+   * reason, not a Temporal one: the compiler does not follow assignments
+   * happening inside a callback, so after the `condition` it would still
+   * believe a `let` is `null`. Reading a property makes the narrowing work.
    */
   const pending: { review: FormGenerationReviewSignal | null } = {
     review: null,
   };
 
-  // El handler se registra antes de la primera espera. Si llegara una señal
-  // antes de que exista el handler, Temporal la guarda y la entrega al
-  // registrarlo — pero registrarlo temprano evita depender de eso.
+  // The handler is registered before the first wait. If a signal arrived before
+  // the handler existed, Temporal would buffer it and deliver it on
+  // registration — but registering early avoids depending on that.
   setHandler(reviewSignal, (review) => {
     pending.review = review;
   });
@@ -166,14 +164,14 @@ async function runGeneration(
   if (!generated.isValid) {
     await activities.failFormGeneration({
       formGenerationId,
-      reason: `El modelo no produjo un formulario válido en ${generationPolicy.maxAttempts} intentos. Último problema: ${generated.problems[0] ?? 'desconocido'}`,
+      reason: `The model did not produce a valid form in ${generationPolicy.maxAttempts} attempts. Last problem: ${generated.problems[0] ?? 'unknown'}`,
     });
 
     return formGenerationStatuses.failed;
   }
 
-  // Deja la solicitud en AWAITING_REVIEW. La IA nunca publica sola: acá el
-  // workflow se detiene hasta que una persona decida.
+  // Leaves the request in AWAITING_REVIEW. The AI never publishes on its own:
+  // here the workflow halts until a person decides.
   await activities.saveGeneratedForm({
     formGenerationId,
     draft: generated.draft,
@@ -189,7 +187,7 @@ async function runGeneration(
   if (!wasReviewed || !review) {
     await activities.failFormGeneration({
       formGenerationId,
-      reason: `Nadie revisó el formulario en ${generationPolicy.reviewWindow}.`,
+      reason: `Nobody reviewed the form within ${generationPolicy.reviewWindow}.`,
     });
 
     return formGenerationStatuses.failed;
@@ -201,7 +199,7 @@ async function runGeneration(
     reviewerNote: review.reviewerNote,
   });
 
-  log.info('Generación revisada', {
+  log.info('Generation reviewed', {
     formGenerationId,
     decision: review.decision,
   });
@@ -218,16 +216,16 @@ type GenerateValidDraftInput = {
 };
 
 /**
- * El bucle de reparación.
+ * The repair loop.
  *
- * Cada vuelta le devuelve al modelo, por escrito, qué estuvo mal en la
- * anterior. Es lo que distingue esto de reintentar a ciegas: un reintento sin
- * los errores adentro le pide exactamente lo mismo al mismo modelo, y con
- * temperatura baja devuelve casi siempre la misma respuesta inválida.
+ * Every turn hands the model, in writing, what went wrong in the previous one.
+ * That is what sets this apart from retrying blindly: a retry without the
+ * errors inside asks exactly the same thing of the same model, and at a low
+ * temperature it returns almost always the same invalid answer.
  *
- * Vive en el workflow y no en la política de reintentos de Temporal porque el
- * reintento de Temporal es para fallos de transporte —vuelve a ejecutar la
- * misma actividad con los mismos argumentos—. Acá los argumentos cambian.
+ * It lives in the workflow and not in Temporal's retry policy because
+ * Temporal's retry is for transport failures — it re-executes the same activity
+ * with the same arguments. Here the arguments change.
  */
 const generateValidDraft = async ({
   formGenerationId,
@@ -239,9 +237,10 @@ const generateValidDraft = async ({
   for (let attempt = 1; attempt <= generationPolicy.maxAttempts; attempt += 1) {
     await activities.markStatus({
       formGenerationId,
-      // El primer intento genera; los siguientes reparan. Son estados
-      // distintos porque para quien mira la pantalla significan cosas
-      // distintas: «esto está tardando» vs. «esto está teniendo problemas».
+      // The first attempt generates; the following ones repair. They are
+      // different statuses because to whoever is watching the screen they mean
+      // different things: "this is taking a while" vs. "this is having
+      // trouble".
       status:
         attempt === 1
           ? formGenerationStatuses.generating
@@ -269,7 +268,7 @@ const generateValidDraft = async ({
 
     problems = validation.problems;
 
-    log.warn('El formulario generado no validó', {
+    log.warn('The generated form did not validate', {
       formGenerationId,
       attempt,
       problems,

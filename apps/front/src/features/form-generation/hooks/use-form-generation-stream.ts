@@ -8,18 +8,18 @@ import { formGenerationStream } from '../config/stream-config';
 import type { FormGeneration } from '../types/form-generation';
 
 /**
- * Deja la pantalla enterada de lo que hace el pipeline sin preguntar.
+ * Keeps the screen informed of what the pipeline is doing without asking.
  *
- * El recorrido completo es: el worker escribe el estado en Postgres → un
- * trigger dispara `NOTIFY` → el back lo escucha con `LISTEN` y emite por
- * socket.io → esto lo escribe en la caché de react-query. Como lo que llega es
- * la entidad completa, se puede escribir directo con `setQueryData` en vez de
- * invalidar: no hace falta un GET de vuelta para mostrarla.
+ * The full journey is: the worker writes the status into Postgres → a trigger
+ * fires `NOTIFY` → the back listens with `LISTEN` and emits over socket.io →
+ * this writes it into the react-query cache. Since what arrives is the complete
+ * entity, it can be written straight with `setQueryData` instead of
+ * invalidating: no GET back is needed to show it.
  *
- * No devuelve nada. Los componentes leen de `useFormGeneration` como si no
- * existiera; esto sólo hace que esa lectura esté al día. Así, si el socket no
- * conecta, no hay nada que romper — el `refetchInterval` de la query sostiene
- * la pantalla igual.
+ * It returns nothing. Components read from `useFormGeneration` as if it did not
+ * exist; this only keeps that read up to date. That way, if the socket does not
+ * connect, there is nothing to break — the query's `refetchInterval` holds the
+ * screen up all the same.
  */
 export const useFormGenerationStream = (formGenerationId: string): void => {
   const queryClient = useQueryClient();
@@ -30,18 +30,18 @@ export const useFormGenerationStream = (formGenerationId: string): void => {
     }
 
     const socket = io(formGenerationStream.url, {
-      // El handshake vive bajo el prefijo de la API, no en la raíz del dominio.
-      // Ver `stream-config.ts`.
+      // The handshake lives below the API prefix, not at the domain root. See
+      // `stream-config.ts`.
       path: formGenerationStream.path,
-      // El servidor se lo pasa a otra réplica cuando se cae una: reconectar es
-      // el comportamiento por defecto y acá conviene dejarlo.
+      // The server hands it to another replica when one goes down:
+      // reconnecting is the default behaviour and here it is worth keeping.
       autoConnect: true,
     });
 
-    // La suscripción va en `connect` y no una sola vez: al reconectar, el
-    // servidor es una sesión nueva y la sala anterior no existe más. Sin esto,
-    // la pantalla queda muda después del primer corte — que es exactamente el
-    // momento en el que hace falta.
+    // The subscription goes in `connect` and not just once: on reconnect, the
+    // server is a new session and the previous room no longer exists. Without
+    // this, the screen goes mute after the first drop — which is exactly when
+    // it is needed.
     const subscribe = () => {
       socket.emit(formGenerationEvents.watch, formGenerationId);
     };

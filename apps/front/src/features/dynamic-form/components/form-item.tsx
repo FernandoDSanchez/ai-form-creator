@@ -6,14 +6,14 @@ import { cn } from '@/utils/cn';
 
 type FormItemProps = {
   children?: ReactNode;
-  /** Descripción opcional declarada en el schema (`x-decorator-props`). */
+  /** Optional description declared in the schema (`x-decorator-props`). */
   help?: string;
   className?: string;
 };
 
 /**
- * Decorador de campo: label, marca de requerido, ayuda y errores.
- * Se declara en el schema como `x-decorator: 'FormItem'`.
+ * Field decorator: label, required marker, help and errors.
+ * It is declared in the schema as `x-decorator: 'FormItem'`.
  */
 export const FormItem = observer(
   ({ children, help, className }: FormItemProps) => {

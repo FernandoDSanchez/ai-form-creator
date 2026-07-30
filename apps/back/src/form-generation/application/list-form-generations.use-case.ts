@@ -1,7 +1,7 @@
 import type { FormGeneration } from '../domain/form-generation';
 import type { FormGenerationRepository } from '../domain/ports/form-generation-repository.port';
 
-/** Listado de solicitudes, de la más reciente a la más vieja. */
+/** List of requests, from the most recent to the oldest. */
 export class ListFormGenerationsUseCase {
   constructor(private readonly formGenerations: FormGenerationRepository) {}
 

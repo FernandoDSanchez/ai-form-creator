@@ -15,9 +15,9 @@ export type ReviewFormGenerationInput = {
 };
 
 /**
- * Manda el veredicto. Responde 204 y sin cuerpo, a propósito: el estado final
- * no lo escribe el endpoint sino el worker, cuando recibe la señal. Llega por
- * el WebSocket como cualquier otro cambio.
+ * Sends the verdict. It answers 204 with no body, on purpose: the final status
+ * is not written by the endpoint but by the worker, when it receives the
+ * signal. It arrives over the WebSocket like any other change.
  */
 export const reviewFormGeneration = ({
   formGenerationId,
@@ -38,8 +38,9 @@ export const useReviewFormGeneration = ({
   return useMutation({
     mutationFn: reviewFormGeneration,
     onSuccess: (result, variables, ...rest) => {
-      // No se escribe el estado a mano: el que manda es el worker. Se invalida
-      // para que, si el socket no está, el refetch traiga el desenlace.
+      // The status is not written by hand: the worker is in charge. It is
+      // invalidated so that, if the socket is not there, the refetch brings the
+      // outcome.
       void queryClient.invalidateQueries({
         queryKey: formGenerationQueryKeys.detail(variables.formGenerationId),
       });

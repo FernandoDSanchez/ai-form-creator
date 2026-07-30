@@ -16,8 +16,8 @@ type RouteModule = {
 };
 
 /**
- * Convierte un módulo de ruta en la forma que espera react-router,
- * inyectando el `queryClient` en loaders/actions.
+ * Turns a route module into the shape react-router expects, injecting the
+ * `queryClient` into loaders/actions.
  */
 const convert = (queryClient: QueryClient) => (routeModule: RouteModule) => ({
   loader: routeModule.clientLoader?.(queryClient),

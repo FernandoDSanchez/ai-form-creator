@@ -20,8 +20,8 @@ export default tseslint.config(
   prettier,
 
   // ---------------------------------------------------------------------------
-  // Los contratos. Es el único código que compilan las dos apps, así que se
-  // mira con la misma lupa que el núcleo del back.
+  // The contracts. This is the only code both apps compile, so it gets looked
+  // at with the same magnifying glass as the back's core.
   // ---------------------------------------------------------------------------
   {
     files: ['src/**/*.ts'],
@@ -39,13 +39,13 @@ export default tseslint.config(
     },
     rules: {
       /**
-       * La regla arquitectónica del paquete, y la única que necesita:
-       * un contrato sólo puede importar lo que este `package.json` declara
-       * como `dependencies` —hoy, TypeBox—. Nada de Nest, Prisma, React ni
-       * utilidades de una de las apps: lo que entre acá se lo comen las dos.
+       * The architectural rule of the package, and the only one it needs: a
+       * contract can only import what this `package.json` declares as
+       * `dependencies` — today, TypeBox. No Nest, no Prisma, no React and no
+       * utilities from one of the apps: whatever gets in here, both apps eat.
        *
-       * Las devDependencies quedan fuera a propósito: `typescript` o `eslint`
-       * son herramientas del build, no cosas que un contrato pueda importar.
+       * devDependencies are left out on purpose: `typescript` or `eslint` are
+       * build tools, not things a contract may import.
        */
       'import-x/no-extraneous-dependencies': [
         'error',
@@ -73,7 +73,7 @@ export default tseslint.config(
         },
       ],
 
-      // --- nombrado (mismas convenciones que las apps, CLAUDE.md §2) ---
+      // --- naming (same conventions as the apps, CLAUDE.md §2) ---
       '@typescript-eslint/naming-convention': [
         'error',
         {
@@ -90,15 +90,15 @@ export default tseslint.config(
           format: ['camelCase'],
           leadingUnderscore: 'allow',
         },
-        // Las claves de un schema describen el JSON que viaja por el cable
-        // (`$id`, `date-time`), no símbolos de TypeScript.
+        // The keys of a schema describe the JSON travelling over the wire
+        // (`$id`, `date-time`), not TypeScript symbols.
         { selector: 'objectLiteralProperty', format: null },
         { selector: 'typeProperty', format: null },
         { selector: 'typeLike', format: ['PascalCase'] },
         { selector: 'enumMember', format: ['UPPER_CASE'] },
       ],
 
-      // --- calidad ---
+      // --- quality ---
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -113,7 +113,7 @@ export default tseslint.config(
   },
 
   // ---------------------------------------------------------------------------
-  // Herramientas del build: Node puro, fuera del tsconfig.
+  // Build tooling: plain Node, outside the tsconfig.
   // ---------------------------------------------------------------------------
   {
     files: ['scripts/**/*.mjs', 'eslint.config.mjs'],
@@ -122,8 +122,8 @@ export default tseslint.config(
       globals: globals.node,
     },
     rules: {
-      // Los plugins de ESLint exportan default + named con el mismo nombre;
-      // la advertencia es un falso positivo del propio archivo de config.
+      // ESLint plugins export default + named under the same name; the warning
+      // is a false positive from the config file itself.
       'import-x/no-named-as-default': 'off',
       'import-x/no-named-as-default-member': 'off',
     },

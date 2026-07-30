@@ -15,22 +15,22 @@ import {
 type FormGenerationReviewProps = {
   formGeneration: FormGeneration;
   /**
-   * Vista previa del formulario generado.
+   * Preview of the generated form.
    *
-   * Llega como nodo y no se renderiza acá: dibujarla es cosa de la feature
-   * `dynamic-form`, y dos features no se importan entre sí (§1). La compone la
-   * ruta, que sí puede ver a las dos.
+   * It arrives as a node and is not rendered here: drawing it belongs to the
+   * `dynamic-form` feature, and two features do not import each other (§1). The
+   * route composes it, since it can see both.
    */
   preview: ReactNode;
 };
 
 /**
- * El paso humano.
+ * The human step.
  *
- * Existe porque la regla del sistema es que la IA nunca publica sola: el
- * workflow queda detenido en AWAITING_REVIEW hasta que alguien decide. Lo que
- * se aprueba no es un resumen del formulario — es el formulario renderizado,
- * arriba, tal como lo va a ver quien lo llene.
+ * It exists because the rule of the system is that the AI never publishes on
+ * its own: the workflow stays halted at AWAITING_REVIEW until somebody decides.
+ * What gets approved is not a summary of the form — it is the rendered form,
+ * above, exactly as whoever fills it in will see it.
  */
 export const FormGenerationReview = ({
   formGeneration,
@@ -54,7 +54,7 @@ export const FormGenerationReview = ({
     <section className="gap-md flex flex-col">
       <div className="bg-surface border-border shadow-card p-md gap-sm flex flex-col rounded-lg border">
         <h2 className="text-content text-base font-semibold">
-          {formGeneration.draft?.title ?? 'Formulario generado'}
+          {formGeneration.draft?.title ?? 'Generated form'}
         </h2>
         {formGeneration.draft?.description ? (
           <p className="text-content-muted text-sm">
@@ -71,7 +71,7 @@ export const FormGenerationReview = ({
               htmlFor={noteId}
               className="text-content text-sm font-medium"
             >
-              Comentario de la revisión
+              Review comment
             </label>
             <textarea
               id={noteId}
@@ -79,7 +79,7 @@ export const FormGenerationReview = ({
               onChange={(event) => setReviewerNote(event.target.value)}
               rows={promptEditor.rows}
               maxLength={formGenerationLimits.reviewerNoteMaxLength}
-              placeholder="Opcional al aprobar; al rechazar, decí qué faltó."
+              placeholder="Optional when approving; when rejecting, say what was missing."
               disabled={reviewMutation.isPending}
               className="border-border bg-surface text-content placeholder:text-content-muted focus:border-brand-500 px-sm py-xs rounded-md border text-sm"
             />
@@ -92,27 +92,27 @@ export const FormGenerationReview = ({
               }
               isLoading={reviewMutation.isPending}
             >
-              Aprobar
+              Approve
             </Button>
             <Button
               variant="danger"
               onClick={() => handleReview(formGenerationReviewDecisions.reject)}
               disabled={reviewMutation.isPending}
             >
-              Rechazar
+              Reject
             </Button>
           </div>
 
           <p className="text-content-muted text-xs">
-            El veredicto viaja al workflow, que está esperándolo. El estado
-            final lo escribe el orquestador y llega solo.
+            The verdict travels to the workflow, which is waiting for it. The
+            final status is written by the orchestrator and arrives on its own.
           </p>
         </div>
       ) : null}
 
       {formGeneration.reviewerNote ? (
         <p className="text-content-muted text-sm">
-          Comentario de la revisión: {formGeneration.reviewerNote}
+          Review comment: {formGeneration.reviewerNote}
         </p>
       ) : null}
     </section>

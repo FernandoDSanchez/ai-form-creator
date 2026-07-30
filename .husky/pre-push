@@ -1,6 +1,7 @@
-# Los contratos van primero, y se recompilan: las apps tipan contra el `dist/`
-# del paquete, así que si alguien tocó `packages/contracts/src` sin rebuildear,
-# los `check-types` de abajo mirarían tipos viejos y darían verde en falso.
+# The contracts go first, and they are rebuilt: the apps type against the
+# package `dist/`, so if somebody touched `packages/contracts/src` without
+# rebuilding, the `check-types` below would look at stale types and go green for
+# the wrong reason.
 (cd packages/contracts && npm run check-types && npm run build)
 (cd apps/front && npm run check-types && npm run test)
 (cd apps/back && npm run check-types && npm run test)

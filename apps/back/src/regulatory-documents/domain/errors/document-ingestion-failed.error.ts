@@ -1,15 +1,16 @@
 /**
- * El motor de ingesta rechazó el archivo o no respondió.
+ * The ingestion engine rejected the file or did not answer.
  *
- * Error de dominio, no `HttpException`: el núcleo no sabe qué código HTTP le
- * corresponde. Esa traducción la hace `infrastructure/http/domain-exception.filter.ts`.
+ * A domain error, not an `HttpException`: the core does not know which HTTP
+ * code corresponds to it. That translation is done by
+ * `infrastructure/http/domain-exception.filter.ts`.
  */
 export class DocumentIngestionFailedError extends Error {
   constructor(
     readonly reason: string,
     options?: { cause?: unknown },
   ) {
-    super(`No se pudo subir el documento al motor de ingesta: ${reason}`, {
+    super(`Could not upload the document to the ingestion engine: ${reason}`, {
       cause: options?.cause,
     });
     this.name = 'DocumentIngestionFailedError';

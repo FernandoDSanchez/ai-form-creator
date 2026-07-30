@@ -2,7 +2,7 @@
   "name": "@ai-form-creator/worker",
   "private": true,
   "version": "0.1.0",
-  "description": "Worker de Temporal — orquesta la generación de formularios con IA",
+  "description": "Temporal worker — orchestrates AI form generation",
   "engines": {
     "node": ">=20.19.0"
   },

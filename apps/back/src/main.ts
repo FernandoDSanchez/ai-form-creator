@@ -13,8 +13,8 @@ const HEALTH_ROUTE = 'health';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
 
-  // `/health` queda fuera del prefijo: las probes del Deployment lo esperan
-  // en la raíz.
+  // `/health` stays out of the prefix: the Deployment probes expect it at the
+  // root.
   app.setGlobalPrefix(appConfig.globalPrefix, { exclude: [HEALTH_ROUTE] });
 
   app.useGlobalPipes(
@@ -25,10 +25,10 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // El front corre en otro origen (app.<host> vs api.<host>).
+  // The front runs on another origin (app.<host> vs api.<host>).
   app.enableCors();
 
-  // Cierra conexiones (Prisma incluido) al recibir SIGTERM de Kubernetes.
+  // Closes connections (Prisma included) on SIGTERM from Kubernetes.
   app.enableShutdownHooks();
 
   const document = SwaggerModule.createDocument(
@@ -44,8 +44,8 @@ async function bootstrap(): Promise<void> {
   await app.listen(env.PORT, '0.0.0.0');
 
   const logger = new Logger(appConfig.name);
-  logger.log(`Escuchando en :${env.PORT}`);
-  logger.log(`Swagger en /${swaggerConfig.path}`);
+  logger.log(`Listening on :${env.PORT}`);
+  logger.log(`Swagger at /${swaggerConfig.path}`);
 }
 
 void bootstrap();

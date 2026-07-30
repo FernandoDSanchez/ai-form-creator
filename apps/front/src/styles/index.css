@@ -3,15 +3,15 @@
 /* -----------------------------------------------------------------------------
  * Design Tokens
  * -----------------------------------------------------------------------------
- * Única fuente de verdad de colores, espaciados, radios y tipografía.
- * Tailwind v4 genera utilidades a partir de estas variables:
+ * Single source of truth for colours, spacing, radii and typography.
+ * Tailwind v4 generates utilities out of these variables:
  *   --color-brand-500  -> bg-brand-500 / text-brand-500 / border-brand-500
  *   --spacing-md       -> p-md / gap-md / mt-md
  *   --radius-lg        -> rounded-lg
- * Nunca escribas un valor crudo (`p-[16px]`, `#4f46e5`) en un componente.
+ * Never write a raw value (`p-[16px]`, `#4f46e5`) in a component.
  * -------------------------------------------------------------------------- */
 @theme {
-  /* Paleta de marca */
+  /* Brand palette */
   --color-brand-50: oklch(0.97 0.02 268);
   --color-brand-100: oklch(0.93 0.05 268);
   --color-brand-200: oklch(0.87 0.09 268);
@@ -23,7 +23,7 @@
   --color-brand-800: oklch(0.38 0.15 268);
   --color-brand-900: oklch(0.31 0.11 268);
 
-  /* Colores semánticos: lo que usan los componentes */
+  /* Semantic colours: what the components use */
   --color-surface: oklch(1 0 0);
   --color-surface-muted: oklch(0.98 0.004 268);
   --color-surface-sunken: oklch(0.96 0.006 268);
@@ -33,7 +33,7 @@
   --color-content-muted: oklch(0.52 0.02 268);
   --color-content-inverse: oklch(0.99 0 0);
 
-  /* Estados */
+  /* States */
   --color-success: oklch(0.62 0.16 152);
   --color-success-surface: oklch(0.96 0.04 152);
   --color-warning: oklch(0.75 0.15 78);
@@ -43,7 +43,7 @@
   --color-info: oklch(0.63 0.14 233);
   --color-info-surface: oklch(0.96 0.03 233);
 
-  /* Espaciado semántico */
+  /* Semantic spacing */
   --spacing-2xs: 0.125rem;
   --spacing-xs: 0.25rem;
   --spacing-sm: 0.5rem;
@@ -52,29 +52,29 @@
   --spacing-xl: 2.5rem;
   --spacing-2xl: 4rem;
 
-  /* Anchos máximos (contenedores).
-   * OJO: los nombres de `--spacing-*` (sm, md, lg, 2xl...) tienen prioridad
-   * sobre la escala `--container-*` en utilidades como `max-w-sm`. Por eso los
-   * contenedores llevan nombres semánticos propios: `max-w-page`,
-   * `max-w-prose`, `max-w-toast`. Nunca uses `max-w-sm` / `max-w-2xl` aquí. */
+  /* Maximum widths (containers).
+   * HEADS UP: the `--spacing-*` names (sm, md, lg, 2xl…) take priority over the
+   * `--container-*` scale in utilities like `max-w-sm`. That is why the
+   * containers carry semantic names of their own: `max-w-page`, `max-w-prose`,
+   * `max-w-toast`. Never use `max-w-sm` / `max-w-2xl` here. */
   --container-page: 64rem;
   --container-prose: 42rem;
   --container-toast: 24rem;
 
-  /* Radios */
+  /* Radii */
   --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.75rem;
   --radius-xl: 1rem;
   --radius-pill: 9999px;
 
-  /* Sombras */
+  /* Shadows */
   --shadow-card:
     0 1px 2px 0 oklch(0.24 0.02 268 / 0.06),
     0 8px 24px -12px oklch(0.24 0.02 268 / 0.18);
   --shadow-popover: 0 12px 32px -8px oklch(0.24 0.02 268 / 0.25);
 
-  /* Tipografía */
+  /* Typography */
   --font-sans:
     'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', monospace;

@@ -7,22 +7,22 @@ import { renderApp, screen } from '@/testing/test-utils';
 
 import { RegulatoryDocumentUpload } from '../regulatory-document-upload';
 
-const FILE_INPUT_LABEL = 'Documento regulatorio';
-const SUBMIT_LABEL = 'Subir documento';
-const EMPTY_STATE = 'Todavía no subiste ningún documento en esta sesión.';
+const FILE_INPUT_LABEL = 'Regulatory document';
+const SUBMIT_LABEL = 'Upload document';
+const EMPTY_STATE = 'You have not uploaded any document in this session yet.';
 
 const aPdf = () =>
-  new File(['%PDF-1.7'], 'resolucion-1234.pdf', { type: 'application/pdf' });
+  new File(['%PDF-1.7'], 'resolution-1234.pdf', { type: 'application/pdf' });
 
 /**
- * Extensión de PDF pero contenido de texto: es el caso que el `accept` del
- * input no filtra y que el back rechaza mirando los magic numbers.
+ * A PDF extension but text content: it is the case the input `accept` does not
+ * filter and that the back rejects by looking at the magic numbers.
  */
 const aFakePdf = () =>
-  new File(['no soy un pdf'], 'disfrazado.pdf', { type: 'text/plain' });
+  new File(['I am not a pdf'], 'disguised.pdf', { type: 'text/plain' });
 
 describe('RegulatoryDocumentUpload', () => {
-  it('sube el PDF y muestra el documento aceptado en PENDING', async () => {
+  it('uploads the PDF and shows the accepted document as PENDING', async () => {
     const { user } = renderApp(<RegulatoryDocumentUpload />);
 
     await user.upload(screen.getByLabelText(FILE_INPUT_LABEL), aPdf());
@@ -32,9 +32,9 @@ describe('RegulatoryDocumentUpload', () => {
       await screen.findByText(regulatoryDocumentsDb.fileName),
     ).toBeInTheDocument();
 
-    // La etiqueta sale del mapa que indexa el estado del contrato compartido:
-    // si el back agregara un estado al pipeline, el `Record` no compilaría
-    // hasta que alguien decida cómo se pinta.
+    // The label comes from the map indexing the shared contract status: if the
+    // back added a status to the pipeline, the `Record` would not compile until
+    // somebody decided how it is painted.
     expect(
       screen.getByText(
         regulatoryDocumentStatusVariants[regulatoryDocumentStatuses.pending]
@@ -43,32 +43,32 @@ describe('RegulatoryDocumentUpload', () => {
     ).toBeInTheDocument();
   });
 
-  it('rechaza un archivo que no es PDF sin llegar a la API', async () => {
+  it('rejects a file that is not a PDF without reaching the API', async () => {
     const { user } = renderApp(<RegulatoryDocumentUpload />);
 
     await user.upload(screen.getByLabelText(FILE_INPUT_LABEL), aFakePdf());
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'El documento debe ser un PDF.',
+      'The document must be a PDF.',
     );
 
     await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }));
 
-    // El estado vacío sigue ahí y nunca aparece el fixture del handler: la
-    // petición no salió.
+    // The empty state is still there and the handler fixture never shows up:
+    // the request never went out.
     expect(await screen.findByText(EMPTY_STATE)).toBeInTheDocument();
     expect(
       screen.queryByText(regulatoryDocumentsDb.fileName),
     ).not.toBeInTheDocument();
   });
 
-  it('avisa si se intenta subir sin elegir archivo', async () => {
+  it('warns if an upload is attempted without choosing a file', async () => {
     const { user } = renderApp(<RegulatoryDocumentUpload />);
 
     await user.click(screen.getByRole('button', { name: SUBMIT_LABEL }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Elegí un documento antes de subirlo.',
+      'Choose a document before uploading it.',
     );
   });
 });

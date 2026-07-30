@@ -23,12 +23,13 @@ export const getFormGenerationQueryOptions = (formGenerationId: string) =>
     queryKey: formGenerationQueryKeys.detail(formGenerationId),
     queryFn: () => getFormGeneration(formGenerationId),
     /**
-     * Refresco propio mientras la solicitud no haya terminado.
+     * A refresh of its own while the request has not finished.
      *
-     * Convive con el WebSocket a propósito, y no lo duplica: el socket es la
-     * vía rápida y esto es el piso. Si el socket no conectó, si se cortó, o si
-     * la API está mockeada, la pantalla igual avanza — más lento, pero avanza.
-     * En cuanto el estado es terminal, se apaga solo.
+     * It coexists with the WebSocket on purpose, and does not duplicate it: the
+     * socket is the fast lane and this is the floor. If the socket never
+     * connected, if it dropped, or if the API is mocked, the screen still moves
+     * forward — slower, but it moves. As soon as the status is terminal, it
+     * switches itself off.
      */
     refetchInterval: (query) => {
       const status = query.state.data?.status;
@@ -37,8 +38,8 @@ export const getFormGenerationQueryOptions = (formGenerationId: string) =>
         ? formGenerationPolling.intervalMs
         : false;
     },
-    // El WebSocket escribe la caché directamente; un `staleTime` largo haría
-    // que un remontaje mostrara lo viejo hasta el siguiente refetch.
+    // The WebSocket writes the cache directly; a long `staleTime` would make a
+    // remount show stale data until the next refetch.
     staleTime: 0,
   });
 

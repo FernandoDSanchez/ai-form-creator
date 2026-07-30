@@ -18,22 +18,22 @@ type FormGenerationPromptProps = {
 };
 
 /**
- * Rechazo temprano, antes de gastar un pedido. El back valida lo mismo con el
- * `ValidationPipe`, así que esto no es la garantía — es no hacer esperar a la
- * persona un viaje de ida y vuelta para decirle que escribió tres palabras.
+ * Early rejection, before spending a request. The back validates the same thing
+ * with the `ValidationPipe`, so this is not the guarantee — it is not making
+ * the person wait a round trip to be told they wrote three words.
  *
- * Los límites salen del contrato compartido: son los mismos números que aplica
- * el DTO del back.
+ * The limits come from the shared contract: they are the same numbers the
+ * back's DTO applies.
  */
 const findValidationError = (prompt: string): string | null => {
   const length = prompt.trim().length;
 
   if (length < formGenerationLimits.promptMinLength) {
-    return `Contá un poco más: al menos ${formGenerationLimits.promptMinLength} caracteres.`;
+    return `Say a bit more: at least ${formGenerationLimits.promptMinLength} characters.`;
   }
 
   if (length > formGenerationLimits.promptMaxLength) {
-    return `El pedido supera los ${formGenerationLimits.promptMaxLength} caracteres.`;
+    return `The request goes over ${formGenerationLimits.promptMaxLength} characters.`;
   }
 
   return null;
@@ -64,16 +64,16 @@ export const FormGenerationPrompt = ({
   const handlePromptChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setPrompt(event.target.value);
 
-    // Sólo se limpia el error mientras se escribe; no se valida en cada tecla.
-    // Marcar en rojo un pedido de dos letras que todavía se está escribiendo es
-    // regañar a alguien por no haber terminado.
+    // The error is only cleared while typing; it is not validated on every
+    // keystroke. Marking a two-letter request in red while it is still being
+    // written is telling somebody off for not having finished.
     if (validationError) {
       setValidationError(null);
     }
   };
 
-  // `SyntheticEvent` y no `FormEvent`: las tipificaciones de React 19 marcan
-  // `FormEvent` como deprecado.
+  // `SyntheticEvent` and not `FormEvent`: the React 19 typings mark
+  // `FormEvent` as deprecated.
   const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -95,7 +95,7 @@ export const FormGenerationPrompt = ({
     >
       <div className="gap-xs flex flex-col">
         <label htmlFor={promptId} className="text-content text-sm font-medium">
-          ¿Qué formulario necesitás?
+          Which form do you need?
         </label>
         <textarea
           id={promptId}
@@ -129,7 +129,7 @@ export const FormGenerationPrompt = ({
 
       <div>
         <Button type="submit" isLoading={requestMutation.isPending}>
-          {requestMutation.isPending ? 'Enviando…' : 'Generar formulario'}
+          {requestMutation.isPending ? 'Sending…' : 'Generate form'}
         </Button>
       </div>
     </form>

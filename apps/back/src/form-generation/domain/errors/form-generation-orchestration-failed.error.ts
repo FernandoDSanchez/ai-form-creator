@@ -1,17 +1,17 @@
 /**
- * No se pudo hablar con el orquestador (arrancar el workflow o mandarle la
- * señal de revisión).
+ * Could not talk to the orchestrator (starting the workflow or sending it the
+ * review signal).
  *
- * Es un fallo de un servicio de afuera, igual que
- * `DocumentIngestionFailedError`: se traduce a 502, no a 500. La solicitud pudo
- * haber quedado escrita en PENDING; lo que falló es el disparo.
+ * It is a failure of an outside service, just like
+ * `DocumentIngestionFailedError`: it translates into 502, not 500. The request
+ * may already have been written as PENDING; what failed is the trigger.
  */
 export class FormGenerationOrchestrationFailedError extends Error {
   constructor(
     readonly reason: string,
     options?: { cause?: unknown },
   ) {
-    super(`No se pudo orquestar la generación: ${reason}`, {
+    super(`Could not orchestrate the generation: ${reason}`, {
       cause: options?.cause,
     });
     this.name = 'FormGenerationOrchestrationFailedError';

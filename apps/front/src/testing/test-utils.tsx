@@ -15,7 +15,7 @@ const AppWrapper = ({ children }: { children: ReactNode }) => (
   </QueryClientProvider>
 );
 
-/** `render` con los providers de la app ya montados. */
+/** `render` with the app providers already mounted. */
 export const renderApp = (ui: ReactElement, options?: RenderOptions) => ({
   user: userEvent.setup(),
   ...render(ui, { wrapper: AppWrapper, ...options }),

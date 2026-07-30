@@ -1,6 +1,6 @@
 /**
- * Claves de `localStorage` / `sessionStorage`.
- * ESLint prohíbe pasar un literal a `localStorage.getItem(...)`.
+ * `localStorage` / `sessionStorage` keys.
+ * ESLint forbids passing a literal to `localStorage.getItem(...)`.
  */
 export const storageKeys = {
   formDraft: (formTemplateId: string) => `afc:form-draft:${formTemplateId}`,

@@ -4,83 +4,84 @@ import {
 } from '../types/form-generation';
 
 /**
- * Variant Mapping: estado → presentación. Sin `if/else` y sin comparar contra
- * strings sueltos, se indexa el mapa (`CLAUDE.md` §5).
+ * Variant Mapping: status → presentation. No `if/else` and no comparing against
+ * loose strings, the map is indexed (`CLAUDE.md` §5).
  *
- * Las claves salen del tipo del contrato compartido, así que el día que el
- * pipeline gane un estado, este `Record` deja de compilar hasta que alguien
- * decida cómo se pinta y qué le dice a la persona que está esperando.
+ * The keys come from the shared contract type, so the day the pipeline gains a
+ * status, this `Record` stops compiling until somebody decides how it is
+ * painted and what it tells the person who is waiting.
  *
- * `isBusy` es lo que hace que la pantalla se explique sola: distingue «esto
- * sigue avanzando, quedate» de «esto terminó, mirá el resultado».
+ * `isBusy` is what makes the screen explain itself: it tells "this is still
+ * moving, stay" apart from "this is done, look at the result".
  */
 export const formGenerationStatusVariants: Record<
   FormGenerationStatus,
   { label: string; description: string; className: string; isBusy: boolean }
 > = {
   [formGenerationStatuses.pending]: {
-    label: 'En cola',
-    description: 'La solicitud entró. Falta que el orquestador la tome.',
+    label: 'Queued',
+    description: 'The request is in. The orchestrator has yet to pick it up.',
     className: 'bg-surface-sunken text-content-muted border-border',
     isBusy: true,
   },
   [formGenerationStatuses.retrieving]: {
-    label: 'Buscando normas',
-    description: 'Recuperando los fragmentos de los documentos elegidos.',
+    label: 'Looking up regulations',
+    description: 'Retrieving the chunks of the chosen documents.',
     className: 'bg-info-surface text-info border-info',
     isBusy: true,
   },
   [formGenerationStatuses.generating]: {
-    label: 'Redactando',
-    description: 'El modelo está armando el formulario.',
+    label: 'Drafting',
+    description: 'The model is putting the form together.',
     className: 'bg-info-surface text-info border-info',
     isBusy: true,
   },
   [formGenerationStatuses.validating]: {
-    label: 'Validando',
-    description: 'Contrastando lo generado contra el vocabulario permitido.',
+    label: 'Validating',
+    description: 'Checking what was generated against the allowed vocabulary.',
     className: 'bg-info-surface text-info border-info',
     isBusy: true,
   },
   [formGenerationStatuses.repairing]: {
-    label: 'Corrigiendo',
-    description: 'No validó: se le devolvieron los errores al modelo.',
+    label: 'Correcting',
+    description: 'It did not validate: the errors went back to the model.',
     className: 'bg-warning-surface text-warning border-warning',
     isBusy: true,
   },
   [formGenerationStatuses.awaitingReview]: {
-    label: 'Esperando revisión',
-    description: 'Hay un formulario válido. Falta que una persona lo apruebe.',
+    label: 'Awaiting review',
+    description: 'There is a valid form. A person has yet to approve it.',
     className: 'bg-brand-50 text-brand-700 border-brand-200',
     isBusy: false,
   },
   [formGenerationStatuses.approved]: {
-    label: 'Aprobado',
-    description: 'Revisado y aprobado por una persona.',
+    label: 'Approved',
+    description: 'Reviewed and approved by a person.',
     className: 'bg-success-surface text-success border-success',
     isBusy: false,
   },
   [formGenerationStatuses.rejected]: {
-    label: 'Rechazado',
-    description: 'Revisado y descartado por una persona.',
+    label: 'Rejected',
+    description: 'Reviewed and discarded by a person.',
     className: 'bg-surface-sunken text-content-muted border-border-strong',
     isBusy: false,
   },
   [formGenerationStatuses.failed]: {
-    label: 'Falló',
-    description: 'El pipeline no pudo terminar.',
+    label: 'Failed',
+    description: 'The pipeline could not finish.',
     className: 'bg-danger-surface text-danger border-danger',
     isBusy: false,
   },
 };
 
 /**
- * El recorrido feliz, para dibujar el avance.
+ * The happy path, for drawing the progress.
  *
- * Es una lista aparte y no `Object.keys` del mapa de arriba porque los estados
- * terminales no son pasos: APPROVED, REJECTED y FAILED son cómo termina, no por
- * dónde pasa. REPAIRING tampoco aparece — es un rulo sobre GENERATING, y
- * mostrarlo como paso propio haría que la barra pareciera retroceder.
+ * It is a separate list and not `Object.keys` of the map above because terminal
+ * statuses are not steps: APPROVED, REJECTED and FAILED are how it ends, not
+ * where it passes through. REPAIRING does not show up either — it is a loop
+ * over GENERATING, and showing it as a step of its own would make the bar seem
+ * to go backwards.
  */
 export const formGenerationProgressSteps = [
   formGenerationStatuses.pending,

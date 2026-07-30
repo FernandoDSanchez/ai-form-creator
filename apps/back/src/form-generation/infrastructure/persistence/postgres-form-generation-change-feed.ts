@@ -17,12 +17,13 @@ import type {
 } from '../../domain/ports/form-generation-change-feed.port';
 
 /**
- * Forma del payload que manda el trigger de la migración.
+ * Shape of the payload the migration trigger sends.
  *
- * Se valida aunque lo escribamos nosotros: el productor está en un `.sql` que
- * ni ESLint ni `tsc` miran, y llega por un canal sin tipos. Si alguien edita el
- * `json_build_object` sin actualizar esto, lo que se ve es un log claro y no un
- * `undefined` recorriendo tres capas hasta el front.
+ * It is validated even though we write it ourselves: the producer lives in a
+ * `.sql` file that neither ESLint nor `tsc` look at, and it arrives through an
+ * untyped channel. If somebody edits the `json_build_object` without updating
+ * this, what shows up is a clear log line and not an `undefined` travelling
+ * across three layers up to the front.
  */
 const changePayloadSchema = z.object({
   id: z.uuid(),
@@ -30,23 +31,23 @@ const changePayloadSchema = z.object({
 });
 
 /**
- * Escucha `LISTEN form_generation_changed` con el driver `pg` crudo.
+ * Listens to `LISTEN form_generation_changed` with the raw `pg` driver.
  *
- * Prisma no expone `LISTEN` —su protocolo es petición/respuesta y las
- * notificaciones asíncronas no tienen dónde entrar—, así que este adaptador
- * abre su propia conexión. Es la única del back que no pasa por Prisma, y es a
- * propósito: son responsabilidades distintas (consultas vs. una sesión
- * permanente parada en un socket).
+ * Prisma does not expose `LISTEN` — its protocol is request/response and
+ * asynchronous notifications have nowhere to land — so this adapter opens its
+ * own connection. It is the only one in the back not going through Prisma, and
+ * that is on purpose: they are different responsibilities (queries vs. a
+ * permanent session parked on a socket).
  *
- * Un `Client` y no un `Pool`: `LISTEN` se registra **por sesión**. Si esto
- * saliera de un pool, la suscripción viviría en la conexión que a esa llamada
- * le tocó y se perdería en cuanto el pool la reciclara — funcionando en
- * desarrollo y muriendo callado en producción.
+ * A `Client` and not a `Pool`: `LISTEN` is registered **per session**. If this
+ * came out of a pool, the subscription would live in whichever connection that
+ * call happened to get and would be lost as soon as the pool recycled it —
+ * working in development and dying quietly in production.
  *
- * Con varias réplicas del back, Postgres entrega el `NOTIFY` a **todas** las
- * que estén escuchando. Eso no es un problema sino justo lo que hace falta:
- * cada réplica tiene sus propios clientes de socket.io conectados, y cada una
- * le avisa a los suyos.
+ * With several back replicas, Postgres delivers the `NOTIFY` to **all** of
+ * those listening. That is not a problem but exactly what is needed: each
+ * replica has its own socket.io clients connected, and each one notifies its
+ * own.
  */
 @Injectable()
 export class PostgresFormGenerationChangeFeed
@@ -92,11 +93,11 @@ export class PostgresFormGenerationChangeFeed
     const client = new Client({ connectionString: env.DATABASE_URL });
     this.client = client;
 
-    // Un error en una conexión ociosa llega por este evento, no por un throw.
-    // Sin el handler, `pg` lo emite como 'error' sin escuchar y Node tumba el
-    // proceso entero.
+    // An error on an idle connection arrives through this event, not through a
+    // throw. Without the handler, `pg` emits it as 'error' with nobody
+    // listening and Node takes the whole process down.
     client.on('error', (error) => {
-      this.logger.error(`Se cortó la escucha de Postgres: ${error.message}`);
+      this.logger.error(`The Postgres listener dropped: ${error.message}`);
       this.scheduleReconnect();
     });
 
@@ -106,23 +107,23 @@ export class PostgresFormGenerationChangeFeed
 
     try {
       await client.connect();
-      // Sin comillas y en minúsculas: el nombre del canal es un identificador,
-      // y así coincide con el literal que usa `pg_notify` en el trigger.
+      // Unquoted and lower case: the channel name is an identifier, and this
+      // way it matches the literal `pg_notify` uses in the trigger.
       await client.query(`LISTEN ${formGenerationChangeChannel}`);
-      this.logger.log(`Escuchando ${formGenerationChangeChannel}`);
+      this.logger.log(`Listening to ${formGenerationChangeChannel}`);
     } catch (error) {
       this.logger.error(
-        `No se pudo abrir la escucha: ${error instanceof Error ? error.message : String(error)}`,
+        `Could not open the listener: ${error instanceof Error ? error.message : String(error)}`,
       );
       this.scheduleReconnect();
     }
   }
 
   /**
-   * Reintenta para siempre. Un back que dejó de escuchar sigue pasando las
-   * probes y sirviendo HTTP: la falla no se ve por ningún lado salvo porque el
-   * front se queda sin novedades. Es preferible reintentar en loop y dejarlo
-   * anotado en el log.
+   * Retries forever. A back that stopped listening keeps passing the probes and
+   * serving HTTP: the failure is invisible anywhere except in the front running
+   * out of news. Retrying in a loop and writing it down in the log is
+   * preferable.
    */
   private scheduleReconnect(): void {
     if (this.isShuttingDown || this.reconnectTimer) {
@@ -146,7 +147,8 @@ export class PostgresFormGenerationChangeFeed
     try {
       await client.end();
     } catch {
-      // Cerrar una conexión ya rota tira; no hay nada que hacer al respecto.
+      // Closing an already broken connection throws; there is nothing to do
+      // about it.
     }
   }
 
@@ -160,14 +162,14 @@ export class PostgresFormGenerationChangeFeed
     try {
       parsed = JSON.parse(payload);
     } catch {
-      this.logger.warn(`Aviso con payload no-JSON: ${payload}`);
+      this.logger.warn(`Notification with a non-JSON payload: ${payload}`);
       return;
     }
 
     const result = changePayloadSchema.safeParse(parsed);
 
     if (!result.success) {
-      this.logger.warn(`Aviso con forma inesperada: ${payload}`);
+      this.logger.warn(`Notification with an unexpected shape: ${payload}`);
       return;
     }
 

@@ -3,25 +3,25 @@ import { Type, type Static } from '@sinclair/typebox';
 import { generatedFormFieldOptionSchema } from './generated-form.js';
 
 /**
- * El JSON de Formily que termina en la base y que el front renderiza.
+ * The Formily JSON that ends up in the database and that the front renders.
  *
- * Es el **subconjunto** de `ISchema` que este sistema emite, no `ISchema`
- * entero: la definición de Formily es recursiva y abierta (todo opcional, todo
- * `any` en las props), o sea impracticable como contrato. Describir sólo lo que
- * el compilador produce hace que el front reciba un tipo con campos concretos
- * y que un cambio en el compilador rompa la compilación de las dos apps.
+ * It is the **subset** of `ISchema` this system emits, not all of `ISchema`:
+ * Formily's definition is recursive and open (everything optional, everything
+ * `any` in the props), which makes it unworkable as a contract. Describing only
+ * what the compiler produces means the front receives a type with concrete
+ * fields, and a change in the compiler breaks compilation in both apps.
  *
- * Lo produce `apps/worker` (`domain/to-formily-schema.ts`) a partir del
- * borrador validado; el back sólo lo guarda y lo sirve.
+ * It is produced by `apps/worker` (`domain/to-formily-schema.ts`) out of the
+ * validated draft; the back only stores it and serves it.
  */
 
-// La IIFE no es adorno: sin ella las llamadas anidadas (`Type.String()`,
-// `Type.Literal()`…) quedan como argumentos con efectos desconocidos y el
-// bundler retiene TypeBox aunque nadie use el schema. La explicación completa
-// está al pie de `generated-form.ts`.
+// The IIFE is not decoration: without it the nested calls (`Type.String()`,
+// `Type.Literal()`…) stay as arguments with unknown side effects and the
+// bundler retains TypeBox even when nobody uses the schema. The full
+// explanation is at the bottom of `generated-form.ts`.
 const formilyFieldSchema = /* @__PURE__ */ (() =>
   Type.Object({
-    /** Tipo del valor. Lo deduce el compilador del `x-component`, no la IA. */
+    /** Value type. Derived by the compiler from the `x-component`, not by the AI. */
     type: Type.Union([
       Type.Literal('string'),
       Type.Literal('number'),
@@ -50,7 +50,7 @@ export const formilyFormSchema = /* @__PURE__ */ (() =>
     },
     {
       $id: 'FormilyFormSchema',
-      description: 'Schema de Formily listo para renderizar.',
+      description: 'Formily schema ready to render.',
     },
   ))();
 

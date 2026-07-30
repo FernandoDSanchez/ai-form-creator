@@ -30,12 +30,12 @@ export const clientLoader =
   };
 
 /**
- * Seguimiento de una solicitud, de punta a punta.
+ * Tracking of a request, end to end.
  *
- * Es el otro punto de composición: la vista previa del formulario la renderiza
- * `dynamic-form` y el panel de revisión es de `form-generation`. Se juntan acá
- * porque las features no se ven entre sí (§1) — el panel recibe la vista previa
- * como nodo y no sabe quién la dibujó.
+ * It is the other composition point: the form preview is rendered by
+ * `dynamic-form` and the review panel belongs to `form-generation`. They come
+ * together here because features do not see each other (§1) — the panel
+ * receives the preview as a node and does not know who drew it.
  */
 const FormGenerationRoute = () => {
   const params = useParams();
@@ -43,22 +43,22 @@ const FormGenerationRoute = () => {
 
   const formGenerationQuery = useFormGeneration({ formGenerationId });
 
-  // Suscribe la pantalla a los cambios de estado. No devuelve nada: sólo
-  // mantiene al día lo que lee la query de arriba.
+  // Subscribes the screen to the status changes. It returns nothing: it only
+  // keeps what the query above reads up to date.
   useFormGenerationStream(formGenerationId);
 
   const formGeneration = formGenerationQuery.data;
 
   if (!formGeneration) {
     return (
-      <ContentLayout title="Solicitud">
+      <ContentLayout title="Request">
         <Spinner size="lg" />
       </ContentLayout>
     );
   }
 
   return (
-    <ContentLayout title="Solicitud" description={formGeneration.prompt}>
+    <ContentLayout title="Request" description={formGeneration.prompt}>
       <div className="gap-lg flex flex-col">
         <FormGenerationProgress formGeneration={formGeneration} />
 
@@ -68,10 +68,11 @@ const FormGenerationRoute = () => {
             preview={
               <DynamicForm
                 schema={formGeneration.formilySchema}
-                // Es una vista previa: se muestra tal como se vería, pero no se
-                // llena ni se envía. Aprobar no es completar el formulario.
+                // It is a preview: it shows how it would look, but it is
+                // neither filled in nor submitted. Approving is not completing
+                // the form.
                 isDisabled
-                submitLabel="Vista previa"
+                submitLabel="Preview"
                 onSubmit={() => undefined}
               />
             }

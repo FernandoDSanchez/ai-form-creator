@@ -12,12 +12,12 @@ export type UploadRegulatoryDocumentInput = {
 };
 
 /**
- * Sube el PDF al endpoint de ingesta. Responde 202: el back ya lo guardó en
- * RAGFlow y creó la fila en PENDING, pero el procesamiento sigue en segundo
- * plano, así que lo que vuelve todavía no está indexado.
+ * Uploads the PDF to the ingestion endpoint. It answers 202: the back already
+ * stored it in RAGFlow and created the row as PENDING, but processing continues
+ * in the background, so what comes back is not indexed yet.
  *
- * No se le pone `Content-Type` a mano: con un `FormData`, axios lo arma solo
- * con el `boundary` del multipart. Fijarlo a mano rompe la subida.
+ * No `Content-Type` is set by hand: with a `FormData`, axios builds it on its
+ * own with the multipart `boundary`. Setting it by hand breaks the upload.
  */
 export const uploadRegulatoryDocument = ({
   file,

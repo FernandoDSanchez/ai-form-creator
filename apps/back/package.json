@@ -2,7 +2,7 @@
   "name": "@ai-form-creator/back",
   "private": true,
   "version": "0.1.0",
-  "description": "API de AI Form Creator — ingesta de documentos regulatorios",
+  "description": "AI Form Creator API — regulatory document ingestion",
   "engines": {
     "node": ">=20.19.0"
   },

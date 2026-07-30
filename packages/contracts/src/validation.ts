@@ -3,33 +3,33 @@ import { Value } from '@sinclair/typebox/value';
 import { formats } from './formats.js';
 
 /**
- * El validador del paquete. **No importes `@sinclair/typebox/value` por tu
- * cuenta**: importalo de acá.
+ * The package validator. **Do not import `@sinclair/typebox/value` on your
+ * own**: import it from here.
  *
- * El motivo es que `FormatRegistry` es un singleton *por copia del módulo*, y
- * en este monorepo hay más de una. `packages/contracts` declara TypeBox como
- * dependencia propia, así que npm le deja su `node_modules`; las apps que
- * enlazan el paquete por `file:` terminan con otra copia hoisteada en la suya.
- * Node resuelve cada `require` desde el archivo que lo pide, o sea que:
+ * The reason is that `FormatRegistry` is a singleton *per module copy*, and
+ * this monorepo has more than one. `packages/contracts` declares TypeBox as
+ * its own dependency, so npm gives it its own `node_modules`; the apps that
+ * link the package through `file:` end up with another hoisted copy in theirs.
+ * Node resolves each `require` from the file asking for it, which means:
  *
- *   - `contracts/dist/**` registra los formatos en la copia de `contracts`,
- *   - una app que haga `Value.Check` con su propia copia mira un registro vacío
- *     y falla con `Unknown format 'uuid'` — devolviendo `false` para
- *     documentos perfectamente válidos, sin tirar ningún error.
+ *   - `contracts/dist/**` registers the formats in the `contracts` copy,
+ *   - an app calling `Value.Check` with its own copy looks at an empty
+ *     registry and fails with `Unknown format 'uuid'` — returning `false` for
+ *     perfectly valid documents, without throwing any error.
  *
- * Ese fallo es silencioso y desconcertante (el schema «se ve bien», el dato «se
- * ve bien»). Exportando el `Value` de la misma copia que corrió
- * `FormatRegistry.Set`, el problema no se puede dar.
+ * That failure is silent and baffling (the schema "looks fine", the data
+ * "looks fine"). By exporting the `Value` from the same copy that ran
+ * `FormatRegistry.Set`, the problem cannot happen.
  *
- * Subpath pensado para consumidores de Node (el back y el worker). El front no
- * valida en runtime: recibe tipos, no schemas.
+ * This subpath is meant for Node consumers (the back and the worker). The
+ * front does not validate at runtime: it receives types, not schemas.
  */
 export { Value };
 
 /**
- * Reexportado para que el import de `formats.js` no sea sólo de efecto
- * colateral: el `package.json` declara `"sideEffects": false`, y un bundler
- * está en su derecho de borrar un import que nadie usa — llevándose el registro
- * de formatos con él.
+ * Re-exported so the `formats.js` import is not side-effect only: the
+ * `package.json` declares `"sideEffects": false`, and a bundler is within its
+ * rights to delete an import nobody uses — taking the format registration with
+ * it.
  */
 export { formats };

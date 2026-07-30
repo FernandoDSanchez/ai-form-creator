@@ -1,15 +1,16 @@
 /**
- * La puerta de la feature a los contratos compartidos.
+ * The feature's door to the shared contracts.
  *
- * Nada se declara acá: la entidad, los estados y el schema de Formily salen de
- * `@ai-form-creator/contracts`, los mismos que usan el dominio del back y el
- * worker. Este archivo es sólo la puerta, igual que
+ * Nothing is declared here: the entity, the statuses and the Formily schema
+ * come from `@ai-form-creator/contracts`, the same ones the back domain and the
+ * worker use. This file is only the door, just like
  * `regulatory-documents/types/regulatory-document.ts`.
  *
- * De los estados se reexporta el **valor** además del tipo: el `Record` de
- * variantes visuales los necesita como claves en runtime. De la entidad, sólo
- * el tipo — los `Static<>` se borran al compilar, mientras que importar el
- * schema traería TypeBox al bundle sin que el front lo use para nada.
+ * From the statuses the **value** is re-exported on top of the type: the
+ * `Record` of visual variants needs them as keys at runtime. From the entity,
+ * only the type — the `Static<>` are erased at compile time, whereas importing
+ * the schema would bring TypeBox into the bundle without the front using it for
+ * anything.
  */
 export type {
   FormGeneration,

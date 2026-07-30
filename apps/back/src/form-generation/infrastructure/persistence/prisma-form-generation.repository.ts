@@ -9,14 +9,14 @@ import type { FormGenerationRepository } from '../../domain/ports/form-generatio
 
 import { toFormGeneration } from './form-generation.mapper';
 
-/** Adaptador de salida: implementa el puerto del repositorio sobre Postgres. */
+/** Outbound adapter: implements the repository port on top of Postgres. */
 @Injectable()
 export class PrismaFormGenerationRepository implements FormGenerationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(request: NewFormGeneration): Promise<FormGeneration> {
-    // `status` y `attempts` los pone el DEFAULT de la tabla: el estado inicial
-    // es una decisión del esquema, no de cada `create` que alguien escriba.
+    // `status` and `attempts` are set by the table DEFAULT: the initial status
+    // is a decision of the schema, not of every `create` somebody writes.
     const row = await this.prisma.formGeneration.create({
       data: {
         prompt: request.prompt,

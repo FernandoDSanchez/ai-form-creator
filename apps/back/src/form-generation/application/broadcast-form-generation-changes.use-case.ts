@@ -6,19 +6,20 @@ import type { FormGenerationPublisher } from '../domain/ports/form-generation-pu
 import type { FormGenerationRepository } from '../domain/ports/form-generation-repository.port';
 
 /**
- * El puente entre los dos procesos: lo que el worker escribe en Postgres sale
- * por el WebSocket del back.
+ * The bridge between the two processes: what the worker writes into Postgres
+ * goes out through the back's WebSocket.
  *
- * Es un caso de uso y no un servicio de infraestructura porque la decisión que
- * toma es de negocio: **el aviso de la base no se retransmite tal cual**. El
- * trigger manda id y estado (todo lo que entra en los 8 KB de `pg_notify`), y
- * acá se relee la fila para publicar la entidad completa, ya mapeada. El front
- * recibe siempre la misma forma, venga de un GET o de un evento.
+ * It is a use case and not an infrastructure service because the decision it
+ * makes is a business one: **the database notification is not relayed as-is**.
+ * The trigger sends id and status (all that fits into the 8 KB of
+ * `pg_notify`), and here the row is re-read to publish the complete entity,
+ * already mapped. The front always receives the same shape, whether it comes
+ * from a GET or from an event.
  *
- * Releer tiene además una propiedad que el payload del trigger no puede tener:
- * lo que se publica es el estado **actual**, no el que había cuando se disparó
- * la notificación. Si llegan dos cambios pegados, el segundo gana, que es lo
- * correcto — y no hay forma de emitir un estado viejo encima de uno nuevo.
+ * Re-reading also has a property the trigger payload cannot have: what gets
+ * published is the **current** status, not the one at the time the notification
+ * fired. If two changes arrive back to back, the second one wins, which is the
+ * right answer — and there is no way to emit an old status on top of a new one.
  */
 export class BroadcastFormGenerationChangesUseCase {
   private stopListening: (() => void) | null = null;
@@ -32,10 +33,10 @@ export class BroadcastFormGenerationChangesUseCase {
 
   start(): void {
     this.stopListening = this.changeFeed.onChange((change) => {
-      // El listener del feed es síncrono (lo llama un evento del socket de
-      // Postgres) y esto es asíncrono. Se encadena el error a mano en vez de
-      // dejar la promesa suelta: una excepción acá no puede tumbar el proceso
-      // ni quedar en un `unhandledRejection`.
+      // The feed listener is synchronous (a Postgres socket event calls it) and
+      // this is asynchronous. The error is chained by hand instead of leaving
+      // the promise loose: an exception here cannot take the process down nor
+      // end up in an `unhandledRejection`.
       this.publish(change).catch(this.onError);
     });
   }
@@ -50,8 +51,8 @@ export class BroadcastFormGenerationChangesUseCase {
       change.formGenerationId,
     );
 
-    // Puede no estar si alguien la borró entre el aviso y la relectura. No es
-    // un error: simplemente no hay nada que publicar.
+    // It may be gone if somebody deleted it between the notification and the
+    // re-read. That is not an error: there is simply nothing to publish.
     if (formGeneration) {
       this.publisher.publish(formGeneration);
     }

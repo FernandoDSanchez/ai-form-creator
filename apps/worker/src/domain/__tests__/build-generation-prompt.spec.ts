@@ -6,29 +6,29 @@ import { buildSystemPrompt, buildUserPrompt } from '../build-generation-prompt';
 describe('buildSystemPrompt', () => {
   const systemPrompt = buildSystemPrompt();
 
-  it('enumera el vocabulario completo', () => {
-    // Si un campo del catálogo no llega al prompt, el modelo no lo va a usar
-    // nunca — y nadie se entera, porque el formulario igual valida.
+  it('lists the complete vocabulary', () => {
+    // If a field of the catalog never reaches the prompt, the model will never
+    // use it — and nobody finds out, because the form validates anyway.
     for (const name of Object.values(formFieldNames)) {
       expect(systemPrompt).toContain(name);
     }
   });
 
-  it('enumera los componentes admitidos', () => {
+  it('lists the accepted components', () => {
     for (const component of Object.values(formFieldComponents)) {
       expect(systemPrompt).toContain(component);
     }
   });
 
-  it('dice explícitamente que la lista es cerrada', () => {
-    expect(systemPrompt).toContain('lista cerrada');
+  it('says explicitly that the list is closed', () => {
+    expect(systemPrompt).toContain('closed list');
   });
 });
 
 describe('buildUserPrompt', () => {
-  const prompt = 'Formulario de declaración de importación.';
+  const prompt = 'Import declaration form.';
 
-  it('incluye el pedido tal cual', () => {
+  it('includes the request as-is', () => {
     const userPrompt = buildUserPrompt({
       prompt,
       regulatoryContext: '',
@@ -38,49 +38,49 @@ describe('buildUserPrompt', () => {
     expect(userPrompt).toContain(prompt);
   });
 
-  it('no arma la sección de fuentes si no hubo documentos', () => {
+  it('does not build the sources section if there were no documents', () => {
     const userPrompt = buildUserPrompt({
       prompt,
       regulatoryContext: '   ',
       problems: [],
     });
 
-    expect(userPrompt).not.toContain('Fuentes normativas');
+    expect(userPrompt).not.toContain('Regulatory sources');
   });
 
-  it('incluye los fragmentos del RAG cuando los hay', () => {
+  it('includes the RAG chunks when there are any', () => {
     const userPrompt = buildUserPrompt({
       prompt,
-      regulatoryContext: '[resolucion.pdf]\nArtículo 5: …',
+      regulatoryContext: '[resolution.pdf]\nArticle 5: …',
       problems: [],
     });
 
-    expect(userPrompt).toContain('Fuentes normativas');
-    expect(userPrompt).toContain('Artículo 5');
+    expect(userPrompt).toContain('Regulatory sources');
+    expect(userPrompt).toContain('Article 5');
   });
 
-  it('no arma la sección de corrección en el primer intento', () => {
+  it('does not build the correction section on the first attempt', () => {
     const userPrompt = buildUserPrompt({
       prompt,
       regulatoryContext: '',
       problems: [],
     });
 
-    expect(userPrompt).not.toContain('Corrección');
+    expect(userPrompt).not.toContain('Correction');
   });
 
-  it('pone los errores del intento anterior al final', () => {
-    // Al final a propósito: es lo último que el modelo lee antes de escribir, y
-    // es lo único que diferencia este intento del anterior.
+  it('puts the previous attempt errors at the end', () => {
+    // At the end on purpose: it is the last thing the model reads before
+    // writing, and the only thing separating this attempt from the last.
     const userPrompt = buildUserPrompt({
       prompt,
-      regulatoryContext: 'contexto',
-      problems: ['El campo "riskLevel" necesita opciones.'],
+      regulatoryContext: 'context',
+      problems: ['The "riskLevel" field needs options.'],
     });
 
-    expect(userPrompt).toContain('El campo "riskLevel" necesita opciones.');
-    expect(userPrompt.indexOf('Corrección')).toBeGreaterThan(
-      userPrompt.indexOf('Fuentes normativas'),
+    expect(userPrompt).toContain('The "riskLevel" field needs options.');
+    expect(userPrompt.indexOf('Correction')).toBeGreaterThan(
+      userPrompt.indexOf('Regulatory sources'),
     );
   });
 });

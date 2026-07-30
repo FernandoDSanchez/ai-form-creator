@@ -34,9 +34,9 @@ import { RegulatoryDocumentResponse } from './dto/regulatory-document.response';
 import { UploadRegulatoryDocumentDto } from './dto/upload-regulatory-document.dto';
 
 /**
- * Adaptador de entrada. Su única responsabilidad es traducir HTTP ↔ dominio:
- * saca el buffer del multipart, llama al caso de uso y devuelve 202. Ninguna
- * regla de negocio vive acá.
+ * Inbound adapter. Its only responsibility is translating HTTP ↔ domain: it
+ * pulls the buffer out of the multipart, calls the use case and returns 202. No
+ * business rule lives here.
  */
 @ApiTags('regulatory-documents')
 @Controller('regulatory-documents')
@@ -49,10 +49,10 @@ export class RegulatoryDocumentsController {
 
   @Get()
   @ApiOperation({
-    summary: 'Lista los documentos regulatorios',
+    summary: 'Lists the regulatory documents',
     description:
-      'Del más reciente al más viejo. Lo consume el selector de documentos ' +
-      'de la pantalla de generación.',
+      'From the most recent to the oldest. Consumed by the document picker ' +
+      'of the generation screen.',
   })
   @ApiOkResponse({ type: [RegulatoryDocumentResponse] })
   async list(): Promise<RegulatoryDocumentResponse[]> {
@@ -67,7 +67,7 @@ export class RegulatoryDocumentsController {
   @HttpCode(HttpStatus.ACCEPTED)
   @UseInterceptors(
     FileInterceptor(uploadConfig.fieldName, {
-      // En memoria: el contenedor corre con `readOnlyRootFilesystem`.
+      // In memory: the container runs with `readOnlyRootFilesystem`.
       storage: memoryStorage(),
       limits: { fileSize: uploadConfig.maxFileSizeBytes, files: 1 },
     }),
@@ -75,19 +75,22 @@ export class RegulatoryDocumentsController {
   @ApiConsumes('multipart/form-data')
   @ApiBody({ type: UploadRegulatoryDocumentDto })
   @ApiOperation({
-    summary: 'Registra un documento regulatorio',
+    summary: 'Registers a regulatory document',
     description:
-      'Fase síncrona: sube el PDF a RAGFlow, guarda la fila en PENDING y ' +
-      'dispara el procesamiento asíncrono. Responde sin esperar el pipeline.',
+      'Synchronous phase: uploads the PDF to RAGFlow, stores the row as ' +
+      'PENDING and triggers the asynchronous processing. It answers without ' +
+      'waiting for the pipeline.',
   })
   @ApiAcceptedResponse({
-    description: 'Documento aceptado; el procesamiento sigue en segundo plano.',
+    description: 'Document accepted; processing continues in the background.',
     type: RegulatoryDocumentResponse,
   })
-  @ApiBadRequestResponse({ description: 'Falta el archivo o no es un PDF.' })
-  @ApiPayloadTooLargeResponse({ description: 'El archivo excede el límite.' })
+  @ApiBadRequestResponse({
+    description: 'The file is missing or is not a PDF.',
+  })
+  @ApiPayloadTooLargeResponse({ description: 'The file exceeds the limit.' })
   @ApiBadGatewayResponse({
-    description: 'RAGFlow rechazó la subida o no respondió.',
+    description: 'RAGFlow rejected the upload or did not answer.',
   })
   async upload(
     @UploadedFileParam(
@@ -97,11 +100,11 @@ export class RegulatoryDocumentsController {
           new MaxFileSizeValidator({
             maxSize: uploadConfig.maxFileSizeBytes,
           }),
-          // Valida los magic numbers del buffer, no el `Content-Type` que
-          // manda el cliente: un `.exe` renombrado a `.pdf` se rechaza acá.
+          // Validates the magic numbers of the buffer, not the `Content-Type`
+          // the client sends: an `.exe` renamed to `.pdf` is rejected here.
           new FileTypeValidator({
             fileType: uploadConfig.allowedMimeType,
-            errorMessage: 'El archivo debe ser un PDF.',
+            errorMessage: 'The file must be a PDF.',
           }),
         ],
       }),

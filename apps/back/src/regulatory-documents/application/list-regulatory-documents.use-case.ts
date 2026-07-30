@@ -2,11 +2,11 @@ import type { RegulatoryDocumentRepository } from '../domain/ports/regulatory-do
 import type { RegulatoryDocument } from '../domain/regulatory-document';
 
 /**
- * Listado de documentos, del más reciente al más viejo.
+ * List of documents, from the most recent to the oldest.
  *
- * Lo pide el selector del front: para generar un formulario hay que elegir
- * contra qué documentos, y hasta ahora la única forma de conocerlos era
- * haberlos subido en esa misma sesión.
+ * The front's picker asks for it: generating a form requires choosing which
+ * documents to generate against, and until now the only way of knowing them was
+ * having uploaded them in that very session.
  */
 export class ListRegulatoryDocumentsUseCase {
   constructor(private readonly documents: RegulatoryDocumentRepository) {}

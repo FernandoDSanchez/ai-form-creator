@@ -1,23 +1,22 @@
 import { FormatRegistry } from '@sinclair/typebox';
 
 /**
- * TypeBox no trae ningún formato registrado de fábrica, y un `format`
- * desconocido **no** se ignora: `Value.Check` devuelve `false` con
- * `"Unknown format 'uuid'"`. O sea que declarar `format: 'uuid'` sin
- * registrarlo hace que el schema rechace hasta los documentos válidos.
+ * TypeBox ships with no formats registered out of the box, and an unknown
+ * `format` is **not** ignored: `Value.Check` returns `false` with
+ * `"Unknown format 'uuid'"`. Which means declaring `format: 'uuid'` without
+ * registering it makes the schema reject even valid documents.
  *
- * Por eso los formatos se registran acá, junto a sus nombres. Los schemas
- * importan `formats.uuid` en vez del literal `'uuid'`, así el registro viaja
- * como dependencia real del módulo: no hay forma de usar el formato sin
- * haberlo registrado, ni de que un bundler se coma el import por creerlo
- * muerto.
+ * That is why formats are registered here, next to their names. Schemas import
+ * `formats.uuid` instead of the literal `'uuid'`, so the registration travels
+ * as a real module dependency: there is no way to use the format without
+ * having registered it, nor for a bundler to drop the import as dead code.
  */
 
-/** UUID de cualquier versión, en minúsculas o mayúsculas. */
+/** UUID of any version, lower or upper case. */
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Fecha-hora RFC 3339 con offset explícito (`Z` o `±hh:mm`). */
+/** RFC 3339 date-time with an explicit offset (`Z` or `±hh:mm`). */
 const dateTimePattern =
   /^\d{4}-\d{2}-\d{2}[Tt]\d{2}:\d{2}:\d{2}(\.\d+)?([Zz]|[+-]\d{2}:\d{2})$/;
 
@@ -30,7 +29,7 @@ FormatRegistry.Set(formats.uuid, (value) => uuidPattern.test(value));
 
 FormatRegistry.Set(
   formats.dateTime,
-  // La forma la valida el patrón; que la fecha exista de verdad (nada de
-  // meses 13 ni 31 de febrero) lo valida `Date.parse`.
+  // The shape is checked by the pattern; that the date actually exists (no
+  // month 13, no February 31st) is checked by `Date.parse`.
   (value) => dateTimePattern.test(value) && !Number.isNaN(Date.parse(value)),
 );

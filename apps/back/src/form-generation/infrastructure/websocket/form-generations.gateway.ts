@@ -20,34 +20,34 @@ import type { FormGeneration } from '../../domain/form-generation';
 import type { FormGenerationPublisher } from '../../domain/ports/form-generation-publisher.port';
 import { FormGenerationResponse } from '../http/dto/form-generation.response';
 
-/** Lo que manda el cliente al suscribirse. Viene de afuera: se valida. */
+/** What the client sends when subscribing. It comes from outside: validate it. */
 const watchPayloadSchema = z.uuid();
 
 /**
- * Adaptador de salida: publica los cambios por socket.io.
+ * Outbound adapter: publishes the changes over socket.io.
  *
- * Una sala por solicitud, y el cliente pide explícitamente cuál quiere mirar.
- * La alternativa —un broadcast a todos los conectados— mandaría el formulario
- * de cada uno a todos los demás.
+ * One room per request, and the client explicitly asks which one it wants to
+ * watch. The alternative — a broadcast to everyone connected — would send each
+ * person's form to everybody else.
  *
- * El id se valida antes de crear la sala. No es paranoia de tipos: `join()`
- * crea la sala si no existe, así que sin el chequeo cualquier cliente puede
- * hacer crecer el mapa de salas del servidor mandando basura, y los nombres de
- * sala que emitimos nosotros (`form-generation:<uuid>`) dejan de ser un espacio
- * cerrado.
+ * The id is validated before creating the room. It is not type paranoia:
+ * `join()` creates the room if it does not exist, so without the check any
+ * client can grow the server's room map by sending garbage, and the room names
+ * we emit ourselves (`form-generation:<uuid>`) stop being a closed space.
  *
- * El `path` se arma con el prefijo global a mano porque `setGlobalPrefix` sólo
- * toca las rutas HTTP: un gateway queda colgando de la raíz del dominio. En el
- * cluster eso lo dejaría fuera de la regla de Ingress que manda `/api` al back,
- * y el handshake terminaría en el nginx del front. Ver el contrato.
+ * The `path` is assembled with the global prefix by hand because
+ * `setGlobalPrefix` only touches HTTP routes: a gateway hangs off the domain
+ * root. In the cluster that would leave it outside the Ingress rule sending
+ * `/api` to the back, and the handshake would end up in the front's nginx. See
+ * the contract.
  */
 @Injectable()
 @WebSocketGateway({
   namespace: formGenerationNamespace,
   path: `/${appConfig.globalPrefix}${formGenerationStreamPath}`,
-  // El front corre en otro origen (app.<host> vs api.<host>), igual que en el
-  // `enableCors()` de `main.ts`. socket.io tiene su propio CORS: el del
-  // servidor HTTP no lo cubre.
+  // The front runs on another origin (app.<host> vs api.<host>), same as in the
+  // `enableCors()` of `main.ts`. socket.io has its own CORS: the HTTP server's
+  // does not cover it.
   cors: { origin: true, credentials: true },
 })
 export class FormGenerationsGateway implements FormGenerationPublisher {
@@ -64,7 +64,7 @@ export class FormGenerationsGateway implements FormGenerationPublisher {
     const parsed = watchPayloadSchema.safeParse(payload);
 
     if (!parsed.success) {
-      this.logger.warn(`Suscripción con id inválido: ${String(payload)}`);
+      this.logger.warn(`Subscription with an invalid id: ${String(payload)}`);
       return;
     }
 
@@ -72,8 +72,9 @@ export class FormGenerationsGateway implements FormGenerationPublisher {
   }
 
   publish(formGeneration: FormGeneration): void {
-    // Puede no haber servidor si algo publica antes de que socket.io levante.
-    // No es un error: el estado está en la base y el front lo trae con un GET.
+    // There may be no server if something publishes before socket.io is up. It
+    // is not an error: the status is in the database and the front fetches it
+    // with a GET.
     this.server
       ?.to(formGenerationRoom(formGeneration.id))
       .emit(

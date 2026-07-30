@@ -1,8 +1,8 @@
 import { cva } from 'class-variance-authority';
 
 /**
- * Estilos base compartidos por todos los controles del formulario.
- * Sólo tokens: nada de valores crudos.
+ * Base styles shared by every form control.
+ * Tokens only: no raw values.
  */
 export const controlVariants = cva(
   'w-full rounded-md border bg-surface px-sm text-sm text-content transition-colors placeholder:text-content-muted disabled:cursor-not-allowed disabled:bg-surface-sunken',

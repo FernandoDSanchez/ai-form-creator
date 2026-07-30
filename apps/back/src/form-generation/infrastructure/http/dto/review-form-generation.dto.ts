@@ -6,21 +6,21 @@ import {
 import { ApiProperty } from '@nestjs/swagger';
 import { IsIn, IsString, MaxLength } from 'class-validator';
 
-/** Cuerpo del `POST /form-generations/:formGenerationId/review`. */
+/** Body of `POST /form-generations/:formGenerationId/review`. */
 export class ReviewFormGenerationDto {
   @ApiProperty({
     enum: Object.values(formGenerationReviewDecisions),
-    description: 'Aprobar publica el formulario; rechazar lo descarta.',
+    description: 'Approving publishes the form; rejecting discards it.',
   })
-  // `@IsIn` sobre los valores del contrato y no `@IsEnum` sobre un enum de
-  // TypeScript: el vocabulario vive en el paquete compartido como objeto
-  // `as const`, no como `enum` (`CLAUDE.md` §2).
+  // `@IsIn` over the contract values and not `@IsEnum` over a TypeScript enum:
+  // the vocabulary lives in the shared package as an `as const` object, not as
+  // an `enum` (`CLAUDE.md` §2).
   @IsIn(Object.values(formGenerationReviewDecisions))
   decision!: FormGenerationReviewDecision;
 
   @ApiProperty({
     maxLength: formGenerationLimits.reviewerNoteMaxLength,
-    description: 'Por qué se aprueba o se rechaza. Puede ir vacío.',
+    description: 'Why it is approved or rejected. It may be empty.',
     default: '',
   })
   @IsString()

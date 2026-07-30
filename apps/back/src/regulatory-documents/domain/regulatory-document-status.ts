@@ -1,12 +1,12 @@
 /**
- * Estados del pipeline de ingesta.
+ * Ingestion pipeline statuses.
  *
- * Igual que la entidad, se definen en `@ai-form-creator/contracts`: el front
- * necesita los mismos literales para mapear estado → variante visual, y una
- * segunda lista acá sería una lista que se desincroniza.
+ * Like the entity, they are defined in `@ai-form-creator/contracts`: the front
+ * needs the same literals to map status → visual variant, and a second list
+ * here would be a list that drifts.
  *
- * Sigue siendo un objeto `as const` y no el enum de Prisma: renombrar una
- * columna no arrastra al núcleo.
+ * It is still an `as const` object and not Prisma's enum: renaming a column
+ * does not drag the core along.
  */
 export {
   regulatoryDocumentStatuses,

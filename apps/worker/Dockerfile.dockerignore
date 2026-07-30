@@ -1,16 +1,15 @@
-# Ignore propio de este Dockerfile: BuildKit lo prefiere sobre el
-# `.dockerignore` de la raíz del contexto. Existe porque el contexto pasó a ser
-# el monorepo entero (el worker necesita `packages/contracts`), y sin esto se le
-# mandarían al daemon el checkout de RAGFlow, las dos apps y todos los
-# node_modules.
+# Ignore file of this Dockerfile: BuildKit prefers it over the `.dockerignore`
+# at the root of the context. It exists because the context became the whole
+# monorepo (the worker needs `packages/contracts`), and without it the RAGFlow
+# checkout, both apps and every node_modules would be sent to the daemon.
 
-# lo que se reinstala/recompila dentro de la imagen
+# what gets reinstalled/rebuilt inside the image
 **/node_modules
 **/dist
 **/coverage
 **/*.tsbuildinfo
 
-# secretos y ruido local
+# secrets and local noise
 **/.env
 **/.env.*
 **/*.log
@@ -18,7 +17,7 @@
 .husky
 .claude
 
-# lo que no participa del build del worker
+# what does not take part in the worker build
 apps/front
 apps/back
 ragflow

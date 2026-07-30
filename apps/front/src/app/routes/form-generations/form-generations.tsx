@@ -16,16 +16,16 @@ import {
 } from '@/features/regulatory-documents/api/get-regulatory-documents';
 
 /**
- * Punto de composición de las dos features.
+ * Composition point of the two features.
  *
- * El selector de documentos lo dibuja `form-generation`, pero los documentos
- * son de `regulatory-documents`, y dos features no se importan entre sí (§1).
- * Acá se piden y se pasan por props. Es exactamente el caso que la regla tiene
- * en mente: la ruta es la única capa que puede ver a las dos.
+ * The document picker is drawn by `form-generation`, but the documents belong
+ * to `regulatory-documents`, and two features do not import each other (§1).
+ * Here they are fetched and passed as props. It is exactly the case the rule
+ * has in mind: the route is the only layer that can see both.
  */
 export const clientLoader = (queryClient: QueryClient) => async () => {
-  // En paralelo: son independientes, y en serie el formulario tardaría en
-  // aparecer lo que tarden las dos sumadas.
+  // In parallel: they are independent, and in series the form would take as
+  // long to appear as both of them added up.
   await Promise.all([
     queryClient.ensureQueryData(getRegulatoryDocumentsQueryOptions()),
     queryClient.ensureQueryData(getFormGenerationsQueryOptions()),
@@ -41,14 +41,14 @@ const FormGenerationsRoute = () => {
 
   return (
     <ContentLayout
-      title="Generar un formulario"
-      description="Describí qué necesitás y elegí contra qué normas apoyarse."
+      title="Generate a form"
+      description="Describe what you need and choose which regulations to lean on."
     >
       <div className="gap-xl flex flex-col">
         <FormGenerationPrompt
           documents={documentsQuery.data ?? []}
-          // Al aceptarse el pedido se va derecho al seguimiento: es donde está
-          // lo que la persona quiere ver ahora.
+          // Once the request is accepted it goes straight to the tracking
+          // screen: that is where what the person wants to see now lives.
           onRequested={(formGeneration) =>
             void navigate(
               paths.formGenerations.detail.getHref(formGeneration.id),
@@ -58,7 +58,7 @@ const FormGenerationsRoute = () => {
 
         <section className="gap-md flex flex-col">
           <h2 className="text-content text-base font-semibold">
-            Solicitudes recientes
+            Recent requests
           </h2>
           {formGenerationsQuery.isLoading ? (
             <Spinner size="md" />

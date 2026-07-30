@@ -1,4 +1,4 @@
-/** Endpoints de la feature. Ningún literal de URL fuera de este archivo. */
+/** Feature endpoints. No URL literal outside this file. */
 export const formGenerationEndpoints = {
   formGenerations: '/form-generations',
   formGeneration: (formGenerationId: string) =>
@@ -7,7 +7,7 @@ export const formGenerationEndpoints = {
     `/form-generations/${formGenerationId}/review`,
 } as const;
 
-/** Claves de react-query de la feature. */
+/** react-query keys of the feature. */
 export const formGenerationQueryKeys = {
   all: ['form-generations'] as const,
   lists: () => [...formGenerationQueryKeys.all, 'list'] as const,

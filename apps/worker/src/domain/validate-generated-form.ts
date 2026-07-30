@@ -3,30 +3,31 @@ import {
   generatedFormSchema,
   type GeneratedForm,
 } from '@ai-form-creator/contracts/form-generation/generated-form';
-// El `Value` sale del paquete y no de `@sinclair/typebox/value` directo: es la
-// única copia donde están registrados los formatos. Ver `validation.ts` allá.
+// The `Value` comes from the package and not straight from
+// `@sinclair/typebox/value`: it is the only copy where the formats are
+// registered. See `validation.ts` over there.
 import { Value } from '@ai-form-creator/contracts/validation';
 
 import { MAX_REPORTED_PROBLEMS } from './generation-policy';
 import type { FormDraftValidation } from './ports/form-generation-activities.port';
 
 /**
- * El portero del pipeline: acá se decide si lo que devolvió el modelo se
- * guarda o se le devuelve para que lo arregle.
+ * The gatekeeper of the pipeline: this is where it is decided whether what the
+ * model returned gets stored or gets handed back for fixing.
  *
- * Son tres filtros, en orden, y cada uno explica su rechazo en castellano
- * porque ese texto vuelve al modelo como instrucción:
+ * Three filters, in order, and each one explains its rejection in plain words
+ * because that text goes back to the model as an instruction:
  *
- *   1. **¿Es JSON?** Los modelos todavía envuelven en ```json a veces.
- *   2. **¿Cumple el schema?** `name` y `component` dentro del enum, todo lo
- *      obligatorio presente, nada de más.
- *   3. **¿Cumple lo que el schema no puede decir?** JSON Schema no expresa
- *      «`options` es obligatorio si y sólo si el componente es una lista», ni
- *      «los `name` no se repiten». Sin este tercer paso se guardaría un
- *      `SelectField` sin opciones — que valida perfecto y renderiza un
- *      desplegable vacío.
+ *   1. **Is it JSON?** Models still wrap things in ```json sometimes.
+ *   2. **Does it meet the schema?** `name` and `component` inside the enum,
+ *      everything mandatory present, nothing extra.
+ *   3. **Does it meet what the schema cannot say?** JSON Schema cannot express
+ *      "`options` is mandatory if and only if the component is a list", nor
+ *      "the `name`s do not repeat". Without this third step a `SelectField`
+ *      with no options would be stored — one that validates perfectly and
+ *      renders an empty dropdown.
  *
- * Puro y sin dependencias de IO: se testea entero con literales.
+ * Pure and with no IO dependencies: it is tested end to end with literals.
  */
 export const validateGeneratedForm = (raw: string): FormDraftValidation => {
   let parsed: unknown;
@@ -37,8 +38,8 @@ export const validateGeneratedForm = (raw: string): FormDraftValidation => {
     return {
       isValid: false,
       problems: [
-        'La respuesta no es JSON válido. Devolvé únicamente el objeto JSON, ' +
-          'sin texto ni delimitadores de bloque alrededor.',
+        'The answer is not valid JSON. Return only the JSON object, with no ' +
+          'text and no block delimiters around it.',
       ],
     };
   }
@@ -49,8 +50,8 @@ export const validateGeneratedForm = (raw: string): FormDraftValidation => {
     return { isValid: false, problems: schemaProblems };
   }
 
-  // El `as` está respaldado por el `Value.Check` de arriba: si el schema pasó,
-  // la forma es la del tipo.
+  // The `as` is backed by the `Value.Check` above: if the schema passed, the
+  // shape is the type's.
   const draft = parsed as GeneratedForm;
   const semanticProblems = collectSemanticProblems(draft);
 
@@ -60,13 +61,13 @@ export const validateGeneratedForm = (raw: string): FormDraftValidation => {
 };
 
 /**
- * Saca el ```json … ``` con el que algunos modelos envuelven la respuesta aun
- * pidiéndoles JSON puro.
+ * Strips the ```json … ``` some models wrap the answer in even when asked for
+ * pure JSON.
  *
- * Se tolera en vez de rechazarse porque gastar un intento de tres en algo que
- * se resuelve con un `slice` es tirar un intento. Lo que sí se rechaza es
- * cualquier otra cosa alrededor: ahí el modelo está haciendo algo distinto de
- * lo que se le pidió y conviene decírselo.
+ * It is tolerated instead of rejected because spending one of three attempts on
+ * something a `slice` solves is throwing an attempt away. What is rejected is
+ * anything else around it: there the model is doing something different from
+ * what it was asked, and it is worth telling it so.
  */
 const stripCodeFence = (raw: string): string => {
   const trimmed = raw.trim();
@@ -90,8 +91,8 @@ const collectSchemaProblems = (parsed: unknown): string[] => {
   const problems: string[] = [];
 
   for (const error of Value.Errors(generatedFormSchema, parsed)) {
-    // Un `anyOf` de treinta constantes produce un error por constante. Con
-    // quedarse con el primero de cada ruta alcanza para decir qué está mal.
+    // An `anyOf` of thirty constants produces one error per constant. Keeping
+    // the first one of each path is enough to say what is wrong.
     if (seenPaths.has(error.path)) {
       continue;
     }
@@ -112,25 +113,25 @@ const describeSchemaError = (
   message: string,
   value: unknown,
 ): string => {
-  const location = path === '' ? 'la raíz del objeto' : path;
+  const location = path === '' ? 'the root of the object' : path;
 
-  return `En ${location}: ${message}. Recibido: ${preview(value)}.`;
+  return `At ${location}: ${message}. Received: ${preview(value)}.`;
 };
 
 const PREVIEW_MAX_LENGTH = 80;
 
 const preview = (value: unknown): string => {
-  // Lo que se serializa salió de un `JSON.parse`, así que no hay ciclos ni
-  // `BigInt`: `JSON.stringify` no puede tirar. Devuelve `undefined` cuando el
-  // valor falta, que es justo el caso de una propiedad obligatoria ausente.
-  const serialized = JSON.stringify(value) ?? 'nada';
+  // What gets serialised came out of a `JSON.parse`, so there are no cycles and
+  // no `BigInt`: `JSON.stringify` cannot throw. It returns `undefined` when the
+  // value is missing, which is exactly the case of an absent required property.
+  const serialized = JSON.stringify(value) ?? 'nothing';
 
   return serialized.length > PREVIEW_MAX_LENGTH
     ? `${serialized.slice(0, PREVIEW_MAX_LENGTH)}…`
     : serialized;
 };
 
-/** Las reglas que JSON Schema no puede expresar en modo `strict`. */
+/** The rules JSON Schema cannot express in `strict` mode. */
 const collectSemanticProblems = (draft: GeneratedForm): string[] => {
   const problems: string[] = [];
   const seenNames = new Set<string>();
@@ -138,8 +139,8 @@ const collectSemanticProblems = (draft: GeneratedForm): string[] => {
   for (const field of draft.fields) {
     if (seenNames.has(field.name)) {
       problems.push(
-        `El campo "${field.name}" aparece más de una vez. Cada name se usa ` +
-          'una sola vez en el formulario.',
+        `The "${field.name}" field appears more than once. Every name is used ` +
+          'exactly once in the form.',
       );
     }
 
@@ -151,15 +152,15 @@ const collectSemanticProblems = (draft: GeneratedForm): string[] => {
 
     if (needsOptions && field.options.length === 0) {
       problems.push(
-        `El campo "${field.name}" usa ${field.component}, que necesita al ` +
-          'menos una opción en `options`.',
+        `The "${field.name}" field uses ${field.component}, which needs at ` +
+          'least one option in `options`.',
       );
     }
 
     if (!needsOptions && field.options.length > 0) {
       problems.push(
-        `El campo "${field.name}" usa ${field.component}, que no admite ` +
-          '`options`. Dejalo como arreglo vacío o cambiá el componente.',
+        `The "${field.name}" field uses ${field.component}, which does not ` +
+          'accept `options`. Leave it as an empty array or change the component.',
       );
     }
 
@@ -167,8 +168,8 @@ const collectSemanticProblems = (draft: GeneratedForm): string[] => {
 
     if (new Set(optionValues).size !== optionValues.length) {
       problems.push(
-        `El campo "${field.name}" tiene opciones con el mismo value. Cada ` +
-          'value se repite una sola vez.',
+        `The "${field.name}" field has options with the same value. Every ` +
+          'value appears exactly once.',
       );
     }
   }

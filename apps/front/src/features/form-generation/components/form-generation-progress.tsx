@@ -17,20 +17,22 @@ type FormGenerationProgressProps = {
 };
 
 /**
- * El recorrido, con el paso actual marcado.
+ * The journey, with the current step marked.
  *
- * Lo que hace útil a esta pantalla no es la barra sino el texto de abajo: quien
- * pidió el formulario está mirando una espera que puede durar un minuto, y
- * «Redactando» sin más no le dice si eso es normal o si algo se colgó. La
- * descripción de cada estado sale del mismo `Record` que la etiqueta.
+ * What makes this screen useful is not the bar but the text below it: whoever
+ * requested the form is staring at a wait that can last a minute, and
+ * "Drafting" on its own does not tell them whether that is normal or whether
+ * something hung. Each status description comes from the same `Record` as the
+ * label.
  */
 export const FormGenerationProgress = ({
   formGeneration,
 }: FormGenerationProgressProps) => {
   const variant = formGenerationStatusVariants[formGeneration.status];
 
-  // REPAIRING no es un paso propio: es un rulo sobre GENERATING. Se ubica ahí
-  // para que la barra no parezca retroceder cuando el modelo se equivoca.
+  // REPAIRING is not a step of its own: it is a loop over GENERATING. It is
+  // placed there so the bar does not seem to go backwards when the model gets
+  // it wrong.
   const currentStatus =
     formGeneration.status === formGenerationStatuses.repairing
       ? formGenerationStatuses.generating
@@ -58,8 +60,8 @@ export const FormGenerationProgress = ({
             key={step}
             className={cn(
               'h-1 flex-1 rounded-full',
-              // `currentStep` es -1 en los estados terminales que no están en
-              // la lista: ahí no se pinta ninguno como alcanzado.
+              // `currentStep` is -1 on the terminal statuses that are not in
+              // the list: there none is painted as reached.
               currentStep >= 0 && index <= currentStep
                 ? 'bg-brand-600'
                 : 'bg-surface-sunken',
@@ -76,8 +78,8 @@ export const FormGenerationProgress = ({
 
       {formGeneration.attempts > 1 ? (
         <p className="text-content-muted text-xs">
-          Intento {formGeneration.attempts}: el modelo tuvo que corregir lo que
-          había generado.
+          Attempt {formGeneration.attempts}: the model had to correct what it
+          had generated.
         </p>
       ) : null}
 

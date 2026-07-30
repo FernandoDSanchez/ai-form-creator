@@ -6,10 +6,10 @@ const NotFoundRoute = () => (
   <AppLayout>
     <div className="text-center">
       <h1 className="text-content text-2xl font-semibold">
-        404 — Página no encontrada
+        404 — Page not found
       </h1>
       <Link to={paths.home.getHref()} className="mt-md inline-block">
-        Volver al inicio
+        Back to home
       </Link>
     </div>
   </AppLayout>

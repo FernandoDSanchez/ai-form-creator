@@ -5,14 +5,14 @@ import {
 import type { FormTemplate } from '@/features/dynamic-form/types/form-template';
 
 /**
- * Fixtures que simulan lo que devolvería el backend (o el generador de IA).
- * El `schema` es JSON puro: aquí está la gracia del enfoque schema-driven.
+ * Fixtures simulating what the backend (or the AI generator) would return.
+ * The `schema` is plain JSON: this is the point of the schema-driven approach.
  */
 export const formTemplatesDb: FormTemplate[] = [
   {
-    id: 'onboarding-cliente',
-    title: 'Onboarding de cliente',
-    description: 'Datos básicos para dar de alta a un cliente nuevo.',
+    id: 'customer-onboarding',
+    title: 'Customer onboarding',
+    description: 'Basic data to register a new customer.',
     status: 'published',
     fieldCount: 5,
     updatedAt: '2026-07-20T10:00:00.000Z',
@@ -21,7 +21,7 @@ export const formTemplatesDb: FormTemplate[] = [
       properties: {
         fullName: {
           type: 'string',
-          title: 'Nombre completo',
+          title: 'Full name',
           required: true,
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.text,
@@ -29,17 +29,17 @@ export const formTemplatesDb: FormTemplate[] = [
         },
         email: {
           type: 'string',
-          title: 'Correo electrónico',
+          title: 'Email address',
           required: true,
           'x-validator': 'email',
           'x-decorator': formFieldDecorators.formItem,
-          'x-decorator-props': { help: 'Usaremos este correo para el acceso.' },
+          'x-decorator-props': { help: 'We will use this address for access.' },
           'x-component': formFieldComponents.text,
-          'x-component-props': { placeholder: 'ada@empresa.com' },
+          'x-component-props': { placeholder: 'ada@company.com' },
         },
         companySize: {
           type: 'string',
-          title: 'Tamaño de la empresa',
+          title: 'Company size',
           required: true,
           enum: [
             { label: '1 - 10', value: 'micro' },
@@ -52,25 +52,25 @@ export const formTemplatesDb: FormTemplate[] = [
         },
         startDate: {
           type: 'string',
-          title: 'Fecha de arranque',
+          title: 'Start date',
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.date,
         },
         acceptsTerms: {
           type: 'boolean',
-          title: 'Términos y condiciones',
+          title: 'Terms and conditions',
           required: true,
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.checkbox,
-          'x-component-props': { children: 'Acepto los términos del servicio' },
+          'x-component-props': { children: 'I accept the terms of service' },
         },
       },
     },
   },
   {
-    id: 'encuesta-satisfaccion',
-    title: 'Encuesta de satisfacción',
-    description: 'Feedback trimestral de clientes activos.',
+    id: 'satisfaction-survey',
+    title: 'Satisfaction survey',
+    description: 'Quarterly feedback from active customers.',
     status: 'published',
     fieldCount: 4,
     updatedAt: '2026-07-24T16:30:00.000Z',
@@ -79,7 +79,7 @@ export const formTemplatesDb: FormTemplate[] = [
       properties: {
         score: {
           type: 'number',
-          title: '¿Qué tan probable es que nos recomiendes? (0-10)',
+          title: 'How likely are you to recommend us? (0-10)',
           required: true,
           'x-validator': [{ minimum: 0, maximum: 10 }],
           'x-decorator': formFieldDecorators.formItem,
@@ -87,36 +87,36 @@ export const formTemplatesDb: FormTemplate[] = [
         },
         favouriteFeature: {
           type: 'string',
-          title: 'Función favorita',
+          title: 'Favourite feature',
           enum: [
-            { label: 'Generador con IA', value: 'ai-generator' },
-            { label: 'Plantillas', value: 'templates' },
-            { label: 'Analítica', value: 'analytics' },
+            { label: 'AI generator', value: 'ai-generator' },
+            { label: 'Templates', value: 'templates' },
+            { label: 'Analytics', value: 'analytics' },
           ],
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.radioGroup,
         },
         comments: {
           type: 'string',
-          title: 'Comentarios',
+          title: 'Comments',
           'x-decorator': formFieldDecorators.formItem,
-          'x-decorator-props': { help: 'Opcional, pero nos ayuda muchísimo.' },
+          'x-decorator-props': { help: 'Optional, but it helps us a lot.' },
           'x-component': formFieldComponents.textarea,
         },
         contactMe: {
           type: 'boolean',
-          title: 'Seguimiento',
+          title: 'Follow-up',
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.checkbox,
-          'x-component-props': { children: 'Quiero que me contacten' },
+          'x-component-props': { children: 'I would like to be contacted' },
         },
       },
     },
   },
   {
-    id: 'solicitud-soporte',
-    title: 'Solicitud de soporte',
-    description: 'Borrador generado por IA, pendiente de revisión.',
+    id: 'support-request',
+    title: 'Support request',
+    description: 'AI-generated draft, pending review.',
     status: 'draft',
     fieldCount: 2,
     updatedAt: '2026-07-26T09:15:00.000Z',
@@ -125,14 +125,14 @@ export const formTemplatesDb: FormTemplate[] = [
       properties: {
         subject: {
           type: 'string',
-          title: 'Asunto',
+          title: 'Subject',
           required: true,
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.text,
         },
         details: {
           type: 'string',
-          title: 'Detalle del problema',
+          title: 'Problem details',
           required: true,
           'x-decorator': formFieldDecorators.formItem,
           'x-component': formFieldComponents.textarea,

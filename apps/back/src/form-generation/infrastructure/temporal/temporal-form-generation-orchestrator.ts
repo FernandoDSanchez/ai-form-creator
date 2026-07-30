@@ -20,18 +20,18 @@ import { FormGenerationOrchestrationFailedError } from '../../domain/errors/form
 import type { FormGenerationOrchestrator } from '../../domain/ports/form-generation-orchestrator.port';
 
 /**
- * Adaptador de salida: tapa el puerto del orquestador con Temporal.
+ * Outbound adapter: covers the orchestrator port with Temporal.
  *
- * El back es acá **sólo un cliente**. No registra workflows ni actividades: eso
- * vive en `apps/worker`, que es otro proceso y otra imagen. Lo único que este
- * archivo sabe es cómo encolar y cómo mandar una señal, y los nombres de las
- * dos cosas salen del paquete de contratos para que no puedan divergir del
- * worker.
+ * Here the back is **only a client**. It registers neither workflows nor
+ * activities: that lives in `apps/worker`, which is another process and another
+ * image. All this file knows is how to enqueue and how to send a signal, and
+ * the names of both come from the contracts package so they cannot diverge from
+ * the worker.
  *
- * La conexión se abre en el arranque pero **su fallo no tumba el pod**, a
- * diferencia de la de Prisma. Sin base no hay nada que hacer; sin Temporal el
- * back todavía sirve los GET y los WebSocket, y lo que falla es sólo el alta.
- * Se reintenta en cada llamada.
+ * The connection is opened at boot but **its failure does not take the pod
+ * down**, unlike Prisma's. Without a database there is nothing to do; without
+ * Temporal the back still serves the GETs and the WebSockets, and what fails is
+ * only the request. It is retried on every call.
  */
 @Injectable()
 export class TemporalFormGenerationOrchestrator
@@ -58,14 +58,14 @@ export class TemporalFormGenerationOrchestrator
     try {
       await client.workflow.start(generateFormWorkflowType, {
         taskQueue: formGenerationTaskQueue,
-        // Id determinista derivado de la fila: no hace falta guardar ningún
-        // `runId` para mandarle la señal después. Ver el contrato.
+        // Deterministic id derived from the row: no `runId` has to be stored to
+        // signal it later. See the contract.
         workflowId: formGenerationWorkflowId(input.formGenerationId),
         args: [input],
       });
     } catch (cause) {
       throw new FormGenerationOrchestrationFailedError(
-        `no se pudo encolar el workflow (${describe(cause)})`,
+        `could not enqueue the workflow (${describe(cause)})`,
         { cause },
       );
     }
@@ -83,11 +83,11 @@ export class TemporalFormGenerationOrchestrator
     try {
       await handle.signal(formGenerationSignals.review, review);
     } catch (cause) {
-      // Llega acá si el workflow ya terminó (por ejemplo, se venció la ventana
-      // de revisión) o si Temporal no responde. En los dos casos el veredicto
-      // no se aplicó, y el cliente tiene que enterarse.
+      // We land here if the workflow already finished (the review window
+      // expired, for instance) or if Temporal is not answering. In both cases
+      // the verdict was not applied, and the client has to find out.
       throw new FormGenerationOrchestrationFailedError(
-        `no se pudo entregar el veredicto (${describe(cause)})`,
+        `could not deliver the verdict (${describe(cause)})`,
         { cause },
       );
     }
@@ -100,7 +100,7 @@ export class TemporalFormGenerationOrchestrator
 
     if (!this.client) {
       throw new FormGenerationOrchestrationFailedError(
-        `no hay conexión con Temporal en ${env.TEMPORAL_ADDRESS}`,
+        `there is no connection to Temporal at ${env.TEMPORAL_ADDRESS}`,
       );
     }
 
@@ -117,12 +117,12 @@ export class TemporalFormGenerationOrchestrator
         connection: this.connection,
         namespace: env.TEMPORAL_NAMESPACE,
       });
-      this.logger.log(`Conectado a Temporal en ${env.TEMPORAL_ADDRESS}`);
+      this.logger.log(`Connected to Temporal at ${env.TEMPORAL_ADDRESS}`);
     } catch (error) {
       this.connection = null;
       this.client = null;
       this.logger.error(
-        `No se pudo conectar a Temporal en ${env.TEMPORAL_ADDRESS}: ${describe(error)}`,
+        `Could not connect to Temporal at ${env.TEMPORAL_ADDRESS}: ${describe(error)}`,
       );
     }
   }

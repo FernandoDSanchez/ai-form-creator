@@ -6,20 +6,20 @@ import type { FormGenerationOrchestrator } from '../domain/ports/form-generation
 import type { FormGenerationRepository } from '../domain/ports/form-generation-repository.port';
 
 /**
- * El veredicto humano.
+ * The human verdict.
  *
- * No escribe el estado: se lo manda como señal al workflow, que está detenido
- * esperándola, y es él quien escribe APPROVED o REJECTED. Podría parecer una
- * vuelta larga —el back tiene la conexión a la base ahí nomás— pero es lo que
- * mantiene un solo dueño de los estados. Si el back escribiera acá y el worker
- * escribiera en el resto del pipeline, habría dos procesos compitiendo por la
- * misma fila y ninguna forma de saber cuál llegó último.
+ * It does not write the status: it sends it as a signal to the workflow, which
+ * is halted waiting for it, and the workflow is the one writing APPROVED or
+ * REJECTED. It might look like the long way round — the back has the database
+ * connection right there — but it is what keeps a single owner of the statuses.
+ * If the back wrote here and the worker wrote in the rest of the pipeline,
+ * there would be two processes competing for the same row and no way of knowing
+ * which one arrived last.
  *
- * El chequeo de AWAITING_REVIEW es la regla del negocio, no una validación de
- * la petición: es lo que sostiene que la IA no publique sola. Se hace igual
- * aunque el workflow rechazaría la señal por su cuenta, porque un `condition`
- * ignorando una señal se ve como «no pasó nada», y acá tiene que verse como un
- * 409.
+ * The AWAITING_REVIEW check is the business rule, not a request validation: it
+ * is what holds up the AI not publishing on its own. It is done even though the
+ * workflow would reject the signal by itself, because a `condition` ignoring a
+ * signal looks like "nothing happened", and here it has to look like a 409.
  */
 export class ReviewFormGenerationUseCase {
   constructor(

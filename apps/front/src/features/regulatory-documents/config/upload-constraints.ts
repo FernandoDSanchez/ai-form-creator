@@ -5,18 +5,19 @@ const MAX_UPLOAD_MIB = 20;
 export const BYTES_PER_MIB = KIB_PER_MIB * BYTES_PER_KIB;
 
 /**
- * Restricciones del alta. Son un espejo de `uploadConfig` del back
- * (`apps/back/src/config/app-config.ts`): acá sirven para no mandar al usuario
- * a un viaje al servidor que ya sabemos que va a fallar, pero la validación de
- * verdad —la que mira los magic numbers del archivo, no la extensión— la hace
- * el `ParseFilePipe` del controlador. Esto es cortesía, no seguridad.
+ * Upload constraints. They mirror the back's `uploadConfig`
+ * (`apps/back/src/config/app-config.ts`): here they exist to avoid sending the
+ * user on a round trip to the server that we already know will fail, but the
+ * real validation — the one looking at the file magic numbers, not the
+ * extension — is done by the controller's `ParseFilePipe`. This is courtesy,
+ * not security.
  *
- * Si el back sube su límite, esto queda desactualizado y nadie se entera: el
- * único síntoma es un 413 que el usuario podría haberse ahorrado. Es el
- * candidato obvio a subir al paquete de contratos cuando haga falta.
+ * If the back raises its limit, this goes stale and nobody finds out: the only
+ * symptom is a 413 the user could have been spared. It is the obvious candidate
+ * to move up to the contracts package when needed.
  */
 export const regulatoryDocumentUpload = {
-  /** Nombre del campo multipart que espera el endpoint. */
+  /** Name of the multipart field the endpoint expects. */
   fieldName: 'file',
   acceptedMimeType: 'application/pdf',
   acceptedExtension: '.pdf',
@@ -24,5 +25,5 @@ export const regulatoryDocumentUpload = {
   maxFileSizeLabel: `${MAX_UPLOAD_MIB} MB`,
 } as const;
 
-/** Decimales al mostrar el tamaño de un archivo. */
+/** Decimals when displaying a file size. */
 export const FILE_SIZE_FRACTION_DIGITS = 1;

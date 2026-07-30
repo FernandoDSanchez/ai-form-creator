@@ -21,8 +21,8 @@ export const FormGenerationStatusBadge = ({
         variant.className,
         className,
       )}
-      // El estado cambia solo, sin que la persona haga nada. Sin esto, quien usa
-      // un lector de pantalla se queda esperando en silencio.
+      // The status changes on its own, without the person doing anything.
+      // Without this, whoever uses a screen reader waits in silence.
       aria-live="polite"
     >
       {variant.label}

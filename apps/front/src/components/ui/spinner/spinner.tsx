@@ -24,7 +24,7 @@ export type SpinnerProps = VariantProps<typeof spinnerVariants> & {
 export const Spinner = ({
   size,
   className,
-  label = 'Cargando',
+  label = 'Loading',
 }: SpinnerProps) => (
   <svg
     role="status"

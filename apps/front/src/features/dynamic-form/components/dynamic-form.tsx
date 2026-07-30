@@ -12,7 +12,7 @@ import { SchemaField } from './schema-field';
 setupValidationLocale();
 
 type DynamicFormProps = {
-  /** JSON Schema de Formily que describe los campos. */
+  /** Formily JSON Schema describing the fields. */
   schema: ISchema;
   initialValues?: FormValues;
   isSubmitting?: boolean;
@@ -22,15 +22,15 @@ type DynamicFormProps = {
 };
 
 /**
- * Renderiza cualquier formulario a partir de su schema.
- * No conoce ningún campo concreto: el schema manda.
+ * Renders any form from its schema.
+ * It knows no concrete field: the schema rules.
  */
 export const DynamicForm = ({
   schema,
   initialValues,
   isSubmitting = false,
   isDisabled = false,
-  submitLabel = 'Enviar',
+  submitLabel = 'Submit',
   onSubmit,
 }: DynamicFormProps) => {
   const form = useMemo(
@@ -39,7 +39,7 @@ export const DynamicForm = ({
   );
 
   const handleSubmit = () => {
-    // `form.submit` valida primero; si falla, no llama al callback.
+    // `form.submit` validates first; if it fails, it does not call the callback.
     form.submit<FormValues>(onSubmit).catch(() => undefined);
   };
 

@@ -24,17 +24,17 @@ const dateFormatter = new Intl.DateTimeFormat(appConfig.locale, {
 });
 
 /**
- * Rechazo temprano, antes de gastar una subida. El back vuelve a validar lo
- * mismo (y mejor: mira los magic numbers del archivo, no la extensión), así
- * que esto es sólo para no hacer esperar al usuario en balde.
+ * Early rejection, before spending an upload. The back validates the same thing
+ * again (and better: it looks at the file magic numbers, not the extension), so
+ * this is only about not making the user wait for nothing.
  */
 const findValidationError = (file: File) => {
   if (file.type !== regulatoryDocumentUpload.acceptedMimeType) {
-    return 'El documento debe ser un PDF.';
+    return 'The document must be a PDF.';
   }
 
   if (file.size > regulatoryDocumentUpload.maxFileSizeBytes) {
-    return `El archivo supera el límite de ${regulatoryDocumentUpload.maxFileSizeLabel}.`;
+    return `The file goes over the ${regulatoryDocumentUpload.maxFileSizeLabel} limit.`;
   }
 
   return null;
@@ -47,9 +47,10 @@ export const RegulatoryDocumentUpload = () => {
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
-  // El back todavía no expone un listado, así que se acumula lo aceptado en
-  // esta sesión. Cuando exista `GET /regulatory-documents`, esto se reemplaza
-  // por una query y las claves ya están en `config/api-endpoints.ts`.
+  // The back does not expose a listing yet, so what was accepted in this
+  // session is accumulated. Once `GET /regulatory-documents` exists, this is
+  // replaced by a query and the keys are already in
+  // `config/api-endpoints.ts`.
   const [acceptedDocuments, setAcceptedDocuments] = useState<
     AcceptedRegulatoryDocument[]
   >([]);
@@ -68,8 +69,8 @@ export const RegulatoryDocumentUpload = () => {
 
         addNotification({
           type: notificationVariants.success,
-          title: 'Documento aceptado',
-          message: `${document.fileName} entró al pipeline de ingesta.`,
+          title: 'Document accepted',
+          message: `${document.fileName} entered the ingestion pipeline.`,
         });
       },
     },
@@ -82,14 +83,14 @@ export const RegulatoryDocumentUpload = () => {
     setValidationError(file ? findValidationError(file) : null);
   };
 
-  // `SyntheticEvent` y no `FormEvent`: las tipificaciones de React 19 marcan
-  // `FormEvent` como deprecado ("no existe tal evento") y mandan a usar
-  // `ChangeEvent`, `SubmitEvent` o `SyntheticEvent` según el caso.
+  // `SyntheticEvent` and not `FormEvent`: the React 19 typings mark
+  // `FormEvent` as deprecated ("no such event exists") and point to
+  // `ChangeEvent`, `SubmitEvent` or `SyntheticEvent` depending on the case.
   const handleSubmit = (event: SyntheticEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     if (!selectedFile) {
-      setValidationError('Elegí un documento antes de subirlo.');
+      setValidationError('Choose a document before uploading it.');
       return;
     }
 
@@ -112,7 +113,7 @@ export const RegulatoryDocumentUpload = () => {
             htmlFor={fileInputId}
             className="text-content text-sm font-medium"
           >
-            Documento regulatorio
+            Regulatory document
           </label>
           <input
             id={fileInputId}
@@ -125,7 +126,7 @@ export const RegulatoryDocumentUpload = () => {
             className="text-content-muted file:mr-sm file:border-border file:bg-surface-sunken file:px-sm file:text-content hover:file:bg-surface file:py-xs text-sm file:rounded-md file:border"
           />
           <p className="text-content-muted text-xs">
-            PDF, hasta {regulatoryDocumentUpload.maxFileSizeLabel}.
+            PDF, up to {regulatoryDocumentUpload.maxFileSizeLabel}.
           </p>
         </div>
 
@@ -137,14 +138,14 @@ export const RegulatoryDocumentUpload = () => {
 
         <div>
           <Button type="submit" isLoading={uploadMutation.isPending}>
-            {uploadMutation.isPending ? 'Subiendo…' : 'Subir documento'}
+            {uploadMutation.isPending ? 'Uploading…' : 'Upload document'}
           </Button>
         </div>
       </form>
 
       {acceptedDocuments.length === 0 ? (
         <p className="text-content-muted text-sm">
-          Todavía no subiste ningún documento en esta sesión.
+          You have not uploaded any document in this session yet.
         </p>
       ) : (
         <ul className="gap-sm flex flex-col">

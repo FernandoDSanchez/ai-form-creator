@@ -1,8 +1,8 @@
 import type { FormValues } from '../types/form-template';
 
 /**
- * Quita valores vacíos antes de enviar: el backend distingue entre
- * "no respondido" (ausente) y "respondido vacío".
+ * Strips empty values before submitting: the backend distinguishes between
+ * "not answered" (absent) and "answered empty".
  */
 export const normalizeFormValues = (values: FormValues): FormValues =>
   Object.fromEntries(

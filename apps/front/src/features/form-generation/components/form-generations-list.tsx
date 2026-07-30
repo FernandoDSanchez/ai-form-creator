@@ -21,7 +21,7 @@ export const FormGenerationsList = ({
   if (formGenerations.length === 0) {
     return (
       <p className="text-content-muted text-sm">
-        Todavía no pediste ningún formulario.
+        You have not requested any form yet.
       </p>
     );
   }
@@ -38,11 +38,11 @@ export const FormGenerationsList = ({
               to={paths.formGenerations.detail.getHref(formGeneration.id)}
               className="text-content text-sm font-medium"
             >
-              {formGeneration.draft?.title ?? 'Sin título todavía'}
+              {formGeneration.draft?.title ?? 'No title yet'}
             </Link>
-            {/* El pedido en crudo es lo que distingue dos solicitudes que
-                todavía no tienen título. `line-clamp` en vez de cortar el texto
-                en JS: así el navegador decide según el ancho real. */}
+            {/* The raw request is what tells apart two requests that do not
+                have a title yet. `line-clamp` instead of cutting the text in
+                JS: that way the browser decides based on the real width. */}
             <p className="text-content-muted mt-2xs line-clamp-2 text-xs">
               {formGeneration.prompt}
             </p>

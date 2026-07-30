@@ -1,42 +1,40 @@
 import { Type, type Static } from '@sinclair/typebox';
 
-// Extensión explícita: la salida ESM la necesita para que Node resuelva el
-// import en runtime. TypeScript la mapea a `.ts` al compilar.
+// Explicit extension: the ESM output needs it so Node can resolve the import at
+// runtime. TypeScript maps it back to `.ts` when compiling.
 import { formFieldComponentSchema } from './form-field-component.js';
 import { formFieldNameSchema } from './form-field-name.js';
 
 /**
- * Lo que el LLM tiene que devolver: el **borrador** del formulario.
+ * What the LLM has to return: the form **draft**.
  *
- * No es JSON de Formily. Pedirle a un modelo que emita Formily directo es
- * pedirle que acierte `x-decorator`, `x-component-props` y el `type` de cada
- * campo en un formato recursivo y abierto — todo superficie para equivocarse,
- * y nada de eso es una decisión de negocio. Acá se le pide sólo lo que sólo él
- * puede aportar (qué campos, con qué título, obligatorio o no) sobre un
- * vocabulario cerrado, y el worker compila eso a Formily con
- * `to-formily-schema.ts`. Lo mecánico no se delega.
+ * It is not Formily JSON. Asking a model to emit Formily directly is asking it
+ * to get `x-decorator`, `x-component-props` and the `type` of every field right
+ * in a recursive, open-ended format — all surface for mistakes, and none of it
+ * a business decision. Here it is asked only for what only it can contribute
+ * (which fields, with which title, required or not) over a closed vocabulary,
+ * and the worker compiles that into Formily with `to-formily-schema.ts`. The
+ * mechanical part is not delegated.
  *
- * Este schema viaja en `response_format.json_schema` de LiteLLM —proyectado
- * antes por `to-strict-json-schema.ts` del worker, que lo acomoda al dialecto
- * acotado del proveedor—, así que su forma está condicionada por el modo
- * `strict`:
+ * This schema travels in LiteLLM's `response_format.json_schema` — projected
+ * first by the worker's `to-strict-json-schema.ts`, which adapts it to the
+ * provider's narrow dialect — so its shape is constrained by `strict` mode:
  *
- * - **Nada opcional.** En `strict` todas las propiedades tienen que estar en
- *   `required`. Los campos que podrían faltar usan el vacío como ausencia
- *   (`''`, `[]`) en vez de `Type.Optional` o de una unión con `null`: las
- *   uniones nulables se traducen a `anyOf` y ahí es donde los proveedores
- *   empiezan a diferir entre sí.
- * - **`additionalProperties: false` en todos los objetos**, por lo mismo.
- * - **Sin `format`.** No está soportado en `strict` y lo que valida se
- *   verifica después, en el workflow.
- * - **`minItems`/`maxItems` valen acá, pero no llegan al proveedor.** Gemini
- *   rechaza el request entero con ellos puestos sobre arreglos de objetos, así
- *   que el worker los saca al proyectar. Se quedan igual porque es contra este
- *   schema que se valida la respuesta: lo que se pierde es la garantía al
- *   decodificar, no el límite.
+ * - **Nothing optional.** In `strict` every property has to be in `required`.
+ *   Fields that could be missing use emptiness as absence (`''`, `[]`) instead
+ *   of `Type.Optional` or a union with `null`: nullable unions translate into
+ *   `anyOf`, and that is where providers start differing from each other.
+ * - **`additionalProperties: false` on every object**, for the same reason.
+ * - **No `format`.** It is not supported in `strict`, and what it validates is
+ *   checked afterwards, in the workflow.
+ * - **`minItems`/`maxItems` hold here, but never reach the provider.** Gemini
+ *   rejects the whole request with them set on arrays of objects, so the worker
+ *   strips them while projecting. They stay anyway because the response is
+ *   validated against this schema: what is lost is the guarantee while
+ *   decoding, not the limit.
  *
- * Sobre el `/* @__PURE__ *\/ (() => …)()` que envuelve cada schema: ver la nota
- * al pie del archivo.
+ * On the `/* @__PURE__ *\/ (() => …)()` wrapping every schema: see the note at
+ * the bottom of the file.
  */
 
 const TITLE_MAX_LENGTH = 120;
@@ -48,9 +46,9 @@ const MAX_FIELDS = 25;
 const MAX_OPTIONS = 20;
 
 /**
- * Límites, exportados para que el constructor del prompt pueda nombrarlos en
- * el texto. Repetir «máximo 25 campos» a mano en el prompt sería la clase de
- * literal que se desincroniza del schema al primer cambio.
+ * Limits, exported so the prompt builder can name them in its text. Repeating
+ * "at most 25 fields" by hand in the prompt would be the kind of literal that
+ * drifts from the schema at the first change.
  */
 export const generatedFormLimits = {
   titleMaxLength: TITLE_MAX_LENGTH,
@@ -63,14 +61,14 @@ export const generatedFormLimits = {
 export const generatedFormFieldOptionSchema = /* @__PURE__ */ (() =>
   Type.Object(
     {
-      /** Lo que ve la persona. */
+      /** What the person sees. */
       label: Type.String({ minLength: 1 }),
-      /** Lo que se guarda. */
+      /** What gets stored. */
       value: Type.String({ minLength: 1 }),
     },
     {
       additionalProperties: false,
-      description: 'Opción de un campo de lista cerrada.',
+      description: 'An option of a closed-list field.',
     },
   ))();
 
@@ -85,30 +83,31 @@ export const generatedFormFieldSchema = /* @__PURE__ */ (() =>
       title: Type.String({
         minLength: 1,
         maxLength: TITLE_MAX_LENGTH,
-        description: 'Etiqueta que ve la persona que llena el formulario.',
+        description: 'Label seen by the person filling in the form.',
       }),
       component: formFieldComponentSchema,
       isRequired: Type.Boolean({
         description:
-          '¿La norma exige este dato para dar el trámite por válido?',
+          'Does the regulation require this data for the filing to be valid?',
       }),
       helpText: Type.String({
         maxLength: HELP_TEXT_MAX_LENGTH,
-        description: 'Aclaración bajo el campo. Cadena vacía si no hace falta.',
+        description: 'Note under the field. Empty string if not needed.',
       }),
       placeholder: Type.String({
         maxLength: PLACEHOLDER_MAX_LENGTH,
-        description: 'Ejemplo dentro del campo. Cadena vacía si no aplica.',
+        description:
+          'Example inside the field. Empty string if not applicable.',
       }),
       options: Type.Array(generatedFormFieldOptionSchema, {
         maxItems: MAX_OPTIONS,
         description:
-          'Opciones para SelectField y RadioGroupField. Arreglo vacío para el resto.',
+          'Options for SelectField and RadioGroupField. Empty array for the rest.',
       }),
     },
     {
       additionalProperties: false,
-      description: 'Un campo del formulario.',
+      description: 'A field of the form.',
     },
   ))();
 
@@ -120,42 +119,42 @@ export const generatedFormSchema = /* @__PURE__ */ (() =>
       title: Type.String({
         minLength: 1,
         maxLength: TITLE_MAX_LENGTH,
-        description: 'Nombre del formulario.',
+        description: 'Name of the form.',
       }),
       description: Type.String({
         maxLength: DESCRIPTION_MAX_LENGTH,
-        description: 'Para qué sirve y a quién le toca llenarlo.',
+        description: 'What it is for and who has to fill it in.',
       }),
       fields: Type.Array(generatedFormFieldSchema, {
         minItems: MIN_FIELDS,
         maxItems: MAX_FIELDS,
-        description: 'Campos, en el orden en que se muestran.',
+        description: 'Fields, in the order they are displayed.',
       }),
     },
     {
       $id: 'GeneratedForm',
       additionalProperties: false,
-      description: 'Borrador de formulario producido por el modelo.',
+      description: 'Form draft produced by the model.',
     },
   ))();
 
 export type GeneratedForm = Static<typeof generatedFormSchema>;
 
 /* -----------------------------------------------------------------------------
- * Por qué la IIFE
+ * Why the IIFE
  * -----------------------------------------------------------------------------
- * `/* @__PURE__ *\/ f(x)` le dice al bundler que **`f`** no tiene efectos, no
- * que `x` no los tenga. Con `Type.Enum(objeto, { literal })` alcanza, porque los
- * argumentos son datos. Pero un `Type.Object({ a: Type.String() })` tiene
- * llamadas adentro, y esas siguen siendo llamadas de origen desconocido: el
- * bundler descarta la de afuera y se queda con las de adentro, reteniendo el
- * import de TypeBox.
+ * `/* @__PURE__ *\/ f(x)` tells the bundler that **`f`** has no side effects,
+ * not that `x` has none. With `Type.Enum(object, { literal })` that is enough,
+ * because the arguments are data. But a `Type.Object({ a: Type.String() })` has
+ * calls inside it, and those are still calls of unknown origin: the bundler
+ * drops the outer one and keeps the inner ones, retaining the TypeBox import.
  *
- * El resultado es el que la anotación venía a evitar: el bundle del front se
- * lleva TypeBox entero (~65 KB) por importar de acá una constante de cinco
- * números. Y no se nota — el build no dice nada, sólo pesa más.
+ * The result is exactly what the annotation was meant to prevent: the front
+ * bundle carries all of TypeBox (~65 KB) because it imported a five-number
+ * constant from here. And it goes unnoticed — the build says nothing, it just
+ * weighs more.
  *
- * Envolviendo en una función, las llamadas de adentro pasan a ser *cuerpo* y no
- * argumentos: no se evalúan hasta que alguien llame, y como la llamada está
- * anotada, si nadie usa el schema el bundler se lleva todo puesto.
+ * Wrapping in a function turns the inner calls into a *body* rather than
+ * arguments: they are not evaluated until somebody calls, and since the call is
+ * annotated, if nobody uses the schema the bundler takes everything with it.
  * -------------------------------------------------------------------------- */

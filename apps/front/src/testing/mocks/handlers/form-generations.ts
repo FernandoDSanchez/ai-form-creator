@@ -20,7 +20,7 @@ import {
 
 const apiPath = (path: string) => `*${path}`;
 
-/** 202: el back acepta el pedido y el pipeline sigue en segundo plano. */
+/** 202: the back accepts the request and the pipeline continues in the background. */
 const ACCEPTED = 202;
 const NO_CONTENT = 204;
 const NOT_FOUND = 404;
@@ -50,8 +50,8 @@ export const formGenerationsHandlers = [
     async ({ params }) => {
       await delay(MOCK_API_LATENCY_MS);
 
-      // Cada lectura avanza un paso: es el reloj del pipeline simulado. Ver
-      // `data/form-generations.ts`.
+      // Every read advances one step: it is the clock of the simulated
+      // pipeline. See `data/form-generations.ts`.
       const formGeneration = advanceFormGeneration(
         String(params.formGenerationId),
       );
@@ -79,8 +79,8 @@ export const formGenerationsHandlers = [
         body.reviewerNote,
       );
 
-      // 204 sin cuerpo, igual que el back: el estado final llega por el otro
-      // camino (acá, el siguiente refetch).
+      // 204 with no body, same as the back: the final status arrives through
+      // the other path (here, the next refetch).
       return reviewed
         ? new HttpResponse(null, { status: NO_CONTENT })
         : new HttpResponse(null, { status: NOT_FOUND });

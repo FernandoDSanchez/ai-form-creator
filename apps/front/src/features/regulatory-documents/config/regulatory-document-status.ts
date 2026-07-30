@@ -4,36 +4,36 @@ import {
 } from '../types/regulatory-document';
 
 /**
- * Variant Mapping: estado -> presentación. Sin `if/else` y sin comparar contra
- * strings sueltos, se indexa el mapa.
+ * Variant Mapping: status -> presentation. No `if/else` and no comparing
+ * against loose strings, the map is indexed.
  *
- * Lo interesante es de dónde salen las claves: `RegulatoryDocumentStatus` es el
- * tipo del contrato compartido, así que el día que el back agregue un estado al
- * pipeline, este `Record` deja de compilar hasta que alguien decida cómo se
- * pinta. Es el chequeo que antes no existía cuando los estados se repetían a
- * mano en cada app.
+ * The interesting part is where the keys come from: `RegulatoryDocumentStatus`
+ * is the shared contract type, so the day the back adds a status to the
+ * pipeline, this `Record` stops compiling until somebody decides how it is
+ * painted. It is the check that did not exist back when the statuses were
+ * repeated by hand in every app.
  */
 export const regulatoryDocumentStatusVariants: Record<
   RegulatoryDocumentStatus,
   { label: string; className: string; isProcessing: boolean }
 > = {
   [regulatoryDocumentStatuses.pending]: {
-    label: 'En cola',
+    label: 'Queued',
     className: 'bg-surface-sunken text-content-muted border-border',
     isProcessing: true,
   },
   [regulatoryDocumentStatuses.processing]: {
-    label: 'Procesando',
+    label: 'Processing',
     className: 'bg-info-surface text-info border-info',
     isProcessing: true,
   },
   [regulatoryDocumentStatuses.indexed]: {
-    label: 'Indexado',
+    label: 'Indexed',
     className: 'bg-success-surface text-success border-success',
     isProcessing: false,
   },
   [regulatoryDocumentStatuses.failed]: {
-    label: 'Falló',
+    label: 'Failed',
     className: 'bg-danger-surface text-danger border-danger',
     isProcessing: false,
   },

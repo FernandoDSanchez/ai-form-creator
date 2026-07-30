@@ -1,13 +1,13 @@
 import type { FormGenerationStatus } from '../form-generation-status';
 
 /**
- * Se quiso aprobar o rechazar algo que todavía no está para revisar (o que ya
- * se revisó).
+ * Somebody tried to approve or reject something that is not ready for review
+ * (or that has already been reviewed).
  *
- * Es la regla que sostiene «la IA nunca publica sola»: la única transición
- * hacia APPROVED sale de AWAITING_REVIEW y la dispara una persona. Vive en el
- * dominio, no en el controlador, porque no es una validación de la petición
- * sino la regla del negocio.
+ * This is the rule holding up "the AI never publishes on its own": the only
+ * transition towards APPROVED starts at AWAITING_REVIEW and is triggered by a
+ * person. It lives in the domain, not in the controller, because it is not a
+ * validation of the request but the rule of the business.
  */
 export class FormGenerationNotReviewableError extends Error {
   constructor(
@@ -15,8 +15,8 @@ export class FormGenerationNotReviewableError extends Error {
     readonly status: FormGenerationStatus,
   ) {
     super(
-      `La solicitud ${formGenerationId} está en ${status} y sólo se puede ` +
-        'revisar lo que está esperando revisión.',
+      `Request ${formGenerationId} is in ${status}, and only what is ` +
+        'awaiting review can be reviewed.',
     );
     this.name = 'FormGenerationNotReviewableError';
   }

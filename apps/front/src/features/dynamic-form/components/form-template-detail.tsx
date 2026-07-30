@@ -26,8 +26,8 @@ export const FormTemplateDetail = ({
       onSuccess: () =>
         addNotification({
           type: notificationVariants.success,
-          title: 'Respuesta enviada',
-          message: 'Gracias, hemos registrado tus respuestas.',
+          title: 'Response submitted',
+          message: 'Thanks, your answers have been recorded.',
         }),
     },
   });
@@ -44,9 +44,7 @@ export const FormTemplateDetail = ({
 
   if (!formTemplate) {
     return (
-      <p className="text-content-muted text-sm">
-        No encontramos este formulario.
-      </p>
+      <p className="text-content-muted text-sm">We could not find this form.</p>
     );
   }
 
@@ -75,8 +73,8 @@ export const FormTemplateDetail = ({
 
       {statusVariant.isSubmittable ? null : (
         <p className="bg-warning-surface text-warning mb-lg p-sm rounded-md text-sm">
-          Este formulario está en «{statusVariant.label}»: puedes revisarlo pero
-          no enviarlo.
+          This form is &ldquo;{statusVariant.label}&rdquo;: you can review it
+          but not submit it.
         </p>
       )}
 

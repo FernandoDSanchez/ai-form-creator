@@ -1,9 +1,8 @@
-/** Ajustes del editor del pedido. Ningún número suelto en el componente (§3). */
+/** Settings of the request editor. No loose number in the component (§3). */
 export const promptEditor = {
-  /** Alto inicial del textarea, en filas. */
+  /** Initial height of the textarea, in rows. */
   rows: 5,
   placeholder:
-    'Ej.: necesito el formulario de declaración de importación para mercancía ' +
-    'sujeta a control sanitario, con los datos del importador y la partida ' +
-    'arancelaria.',
+    'E.g.: I need the import declaration form for goods subject to sanitary ' +
+    'control, with the importer details and the tariff heading.',
 } as const;

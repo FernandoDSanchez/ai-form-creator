@@ -28,7 +28,7 @@ export const FormTemplatesList = () => {
   if (formTemplates.length === 0) {
     return (
       <p className="text-content-muted text-sm">
-        Aún no hay formularios. Crea el primero desde el generador.
+        There are no forms yet. Create the first one from the generator.
       </p>
     );
   }
@@ -54,10 +54,9 @@ export const FormTemplatesList = () => {
           </p>
 
           <div className="text-content-muted mt-md flex items-center justify-between text-xs">
-            <span>{formTemplate.fieldCount} campos</span>
+            <span>{formTemplate.fieldCount} fields</span>
             <span>
-              Actualizado{' '}
-              {dateFormatter.format(new Date(formTemplate.updatedAt))}
+              Updated {dateFormatter.format(new Date(formTemplate.updatedAt))}
             </span>
           </div>
 
@@ -65,7 +64,7 @@ export const FormTemplatesList = () => {
             to={paths.forms.detail.getHref(formTemplate.id)}
             className="mt-md inline-block text-sm"
           >
-            Abrir formulario →
+            Open form →
           </Link>
         </li>
       ))}

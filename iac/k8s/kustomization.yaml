@@ -1,39 +1,40 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-# ai-form-creator — raíz de infraestructura (patrón remoto de forjate)
+# ai-form-creator — infrastructure root (forjate remote pattern)
 #
-# La factory se consume pineada a un commit inmutable. NO uses v1.0.0: ese tag
-# es anterior al desacople y trae Longhorn, LiteLLM y Open WebUI metidos dentro
-# del base, sin posibilidad de tomarlos como componentes opt-in.
+# The factory is consumed pinned to an immutable commit. Do NOT use v1.0.0:
+# that tag predates the decoupling and brings Longhorn, LiteLLM and Open WebUI
+# baked into the base, with no way of taking them as opt-in components.
 #
-# Tiene que ser el SHA COMPLETO (40 chars) o un tag: `git fetch` no resuelve
-# SHAs cortos y kustomize falla con "couldn't find remote ref".
+# It has to be the FULL SHA (40 chars) or a tag: `git fetch` does not resolve
+# short SHAs and kustomize fails with "couldn't find remote ref".
 #
-# Para subir de versión, cambiá la ref en todos los archivos de una sola vez:
+# To bump the version, change the ref in every file in one go:
 #   OLD=$(grep -rho 'ref=[0-9a-f]\{40\}' iac/ | head -1 | cut -d= -f2)
-#   grep -rl "$OLD" iac/ | xargs sed -i "s/$OLD/<nueva-ref>/g"
+#   grep -rl "$OLD" iac/ | xargs sed -i "s/$OLD/<new-ref>/g"
 #
-# El base aporta: namespaces (cert-manager, security, traefik, ai-tools) y el
-# operador de MinIO. El Tenant de MinIO se instancia acá porque su
-# kustomization fija `namespace: minio-operator`.
+# The base contributes: namespaces (cert-manager, security, traefik, ai-tools)
+# and the MinIO operator. The MinIO Tenant is instantiated here because its
+# kustomization pins `namespace: minio-operator`.
 #
-# ⚠️ NO APLIQUES ESTA RAÍZ SOBRE UN CLUSTER QUE YA TENGA LA BASE DE FORJATE
-# instalada por otro proyecto. El bloque `labels:` de abajo se estampa sobre
-# TODO lo que buildea, base incluida: le reescribe `part-of` a los namespaces
-# compartidos, a traefik, al operador de MinIO y a los CRDs, y les borra el
-# `app.kubernetes.io/overlay` del dueño original. Verificalo antes con:
+# ⚠️ DO NOT APPLY THIS ROOT ON A CLUSTER THAT ALREADY HAS THE FORJATE BASE
+# installed by another project. The `labels:` block below is stamped over
+# EVERYTHING it builds, base included: it rewrites `part-of` on the shared
+# namespaces, on traefik, on the MinIO operator and on the CRDs, and it deletes
+# the original owner's `app.kubernetes.io/overlay`. Check first with:
 #   kustomize build iac/k8s/ | kubectl diff -f -
-# Si la base ya está puesta, aplicá sólo ./namespaces/ai-form-creator (y el
-# Tenant de MinIO suelto, si te falta).
+# If the base is already in place, apply only ./namespaces/ai-form-creator (and
+# the MinIO Tenant on its own, if you are missing it).
 
 resources:
   # --- factory ---
   - https://github.com/AItizate/forjate.git//k8s/base?ref=7ac17e6a07446969b2b12004f694e09aa134642e
   - https://github.com/AItizate/forjate.git//k8s/components/apps/minio/single-server?ref=7ac17e6a07446969b2b12004f694e09aa134642e
 
-  # --- namespace propio ---
-  # Todo ai-form-creator vive en un solo namespace. Ver namespaces/ai-form-creator/.
+  # --- our own namespace ---
+  # All of ai-form-creator lives in a single namespace. See
+  # namespaces/ai-form-creator/.
   - ./namespaces/ai-form-creator
 
 labels:

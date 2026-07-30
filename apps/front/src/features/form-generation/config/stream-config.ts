@@ -6,22 +6,23 @@ import {
 import { env } from '@/config/env';
 
 /**
- * De dónde y cuándo escuchar los cambios de estado.
+ * Where and when to listen for status changes.
  *
- * Todo sale de `API_URL` en vez de pedir variables de entorno nuevas: el
- * WebSocket lo sirve el mismo proceso que la API, y dos variables que tienen
- * que apuntar al mismo lado son dos variables que en algún despliegue no lo van
- * a hacer. `URL` con base cubre tanto un `API_URL` absoluto
- * (`https://api.ejemplo.com/api`) como el relativo que usa el cluster (`/api`).
+ * Everything comes from `API_URL` instead of asking for new environment
+ * variables: the WebSocket is served by the same process as the API, and two
+ * variables that have to point at the same place are two variables that in some
+ * deployment will not. `URL` with a base covers both an absolute `API_URL`
+ * (`https://api.example.com/api`) and the relative one the cluster uses
+ * (`/api`).
  *
- * El origen y el path se separan porque socket.io los pide separados: el
- * primero es a qué servidor conectarse, el segundo dónde vive el handshake. Ese
- * path tiene que quedar **debajo del prefijo de la API**, porque el Ingress
- * manda todo lo que no empieza con `/api` al nginx del front.
+ * The origin and the path are kept apart because socket.io asks for them apart:
+ * the first is which server to connect to, the second is where the handshake
+ * lives. That path has to stay **below the API prefix**, because the Ingress
+ * sends everything not starting with `/api` to the front's nginx.
  */
 const apiUrl = new URL(env.API_URL, window.location.origin);
 
-/** `/api/` → `/api`. Sin esto quedaría `/api//socket.io`. */
+/** `/api/` → `/api`. Without this it would end up as `/api//socket.io`. */
 const apiBasePath = apiUrl.pathname.replace(/\/$/, '');
 
 export const formGenerationStream = {
@@ -29,26 +30,26 @@ export const formGenerationStream = {
   path: `${apiBasePath}${formGenerationStreamPath}`,
 
   /**
-   * Con la API mockeada no hay socket que abrir: MSW intercepta peticiones
-   * HTTP, no WebSockets. Si igual se intentara, en los tests el handshake de
-   * socket.io aparecería como petición sin handler y MSW la haría fallar
-   * (`onUnhandledRequest: 'error'`).
+   * With the API mocked there is no socket to open: MSW intercepts HTTP
+   * requests, not WebSockets. If it were attempted anyway, in the tests the
+   * socket.io handshake would show up as a request with no handler and MSW
+   * would make it fail (`onUnhandledRequest: 'error'`).
    *
-   * El default cuando la variable no está es **conectar**: producción es el
-   * caso sin mocks, y es preferible que un olvido deje el socket intentando a
-   * que lo deje apagado sin que nadie lo note.
+   * The default when the variable is absent is to **connect**: production is
+   * the case without mocks, and it is preferable for an oversight to leave the
+   * socket retrying than to leave it off without anybody noticing.
    */
   isEnabled: env.ENABLE_API_MOCKING !== true,
 } as const;
 
 export const formGenerationPolling = {
   /**
-   * Red de seguridad mientras la solicitud sigue avanzando.
+   * Safety net while the request keeps moving forward.
    *
-   * No es la vía principal —para eso está el WebSocket— sino lo que sostiene la
-   * pantalla si el socket no llegó a conectar, si se cayó, o si la API está
-   * mockeada. Holgado a propósito: si el socket anda, este intervalo casi nunca
-   * llega a dispararse.
+   * It is not the main path — the WebSocket is — but what holds the screen up
+   * if the socket never managed to connect, if it went down, or if the API is
+   * mocked. Loose on purpose: if the socket works, this interval almost never
+   * gets to fire.
    */
   intervalMs: 5_000,
 } as const;

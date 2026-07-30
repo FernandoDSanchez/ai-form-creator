@@ -9,6 +9,6 @@ const sizeFormatter = new Intl.NumberFormat(appConfig.locale, {
   maximumFractionDigits: FILE_SIZE_FRACTION_DIGITS,
 });
 
-/** Bytes -> "2,4 MB". Los documentos regulatorios son PDFs, siempre en MB. */
+/** Bytes -> "2.4 MB". Regulatory documents are PDFs, always in MB. */
 export const formatFileSize = (sizeBytes: number) =>
   `${sizeFormatter.format(sizeBytes / BYTES_PER_MIB)} MB`;

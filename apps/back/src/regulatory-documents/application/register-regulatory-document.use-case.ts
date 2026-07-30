@@ -6,15 +6,15 @@ import { regulatoryDocumentStatuses } from '../domain/regulatory-document-status
 import type { UploadedFile } from '../domain/uploaded-file';
 
 /**
- * Fase síncrona del alta de un documento regulatorio.
+ * Synchronous phase of registering a regulatory document.
  *
- * Clase de TypeScript pelada, sin `@Injectable()`: la aplicación no conoce
- * Nest. El módulo la instancia con un `useFactory` (ver
- * `regulatory-documents.module.ts`), y el test la construye con tres dobles y
- * cero infraestructura.
+ * A bare TypeScript class, with no `@Injectable()`: the application does not
+ * know Nest. The module instantiates it with a `useFactory` (see
+ * `regulatory-documents.module.ts`), and the test builds it with three doubles
+ * and zero infrastructure.
  *
- * El orden importa: primero RAGFlow, después la fila. Si se hiciera al revés,
- * un fallo de la subida dejaría filas PENDING que no referencian nada.
+ * The order matters: RAGFlow first, the row after. Done the other way around, a
+ * failed upload would leave PENDING rows referencing nothing.
  */
 export class RegisterRegulatoryDocumentUseCase {
   constructor(
@@ -24,10 +24,10 @@ export class RegisterRegulatoryDocumentUseCase {
   ) {}
 
   async execute(file: UploadedFile): Promise<RegulatoryDocument> {
-    // 1. Proxy del archivo al motor de ingesta (guarda el binario y da un id).
+    // 1. Proxy the file to the ingestion engine (stores the binary, gives an id).
     const ingested = await this.ingestion.ingest(file);
 
-    // 2. Fila propia en PENDING, con el id externo como puente.
+    // 2. Our own row in PENDING, with the external id as the bridge.
     const document = await this.documents.create({
       ragflowDocumentId: ingested.documentId,
       ragflowDatasetId: ingested.datasetId,
@@ -37,10 +37,10 @@ export class RegisterRegulatoryDocumentUseCase {
       status: regulatoryDocumentStatuses.pending,
     });
 
-    // 3. Disparo del procesamiento asíncrono. Sólo viaja el id.
+    // 3. Trigger the asynchronous processing. Only the id travels.
     await this.processing.launch(document.id);
 
-    // 4. El controlador devuelve 202: acá no se espera ningún resultado.
+    // 4. The controller returns 202: no result is awaited here.
     return document;
   }
 }

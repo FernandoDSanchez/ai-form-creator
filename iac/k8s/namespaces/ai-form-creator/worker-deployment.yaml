@@ -3,10 +3,10 @@ kind: Deployment
 metadata:
   name: worker
 spec:
-  # Dos réplicas por disponibilidad, no por rendimiento: Temporal reparte las
-  # tareas de la cola entre los workers que estén escuchando, así que un pod
-  # que se cae no detiene ningún workflow — otro toma la tarea donde quedó.
-  # Escalar de verdad es subir esto, sin coordinación de ningún tipo.
+  # Two replicas for availability, not for throughput: Temporal spreads the
+  # queue tasks across the workers that are listening, so a pod going down
+  # halts no workflow — another one picks the task up where it left off.
+  # Actually scaling is raising this, with no coordination of any kind.
   replicas: 2
   selector:
     matchLabels:
@@ -18,12 +18,13 @@ spec:
     spec:
       containers:
         - name: worker
-          # Worker de Temporal: workflows y actividades de la generación de
-          # formularios. Se conecta a Temporal, a LiteLLM, a RAGFlow y a
-          # app-postgres. No corre migraciones: el esquema lo gobierna el back.
+          # Temporal worker: workflows and activities of form generation. It
+          # connects to Temporal, to LiteLLM, to RAGFlow and to app-postgres. It
+          # runs no migrations: the schema is governed by the back.
           image: ai-form-creator/worker
-          # La imagen se importa a mano al containerd de k3s; no hay registry
-          # del que bajarla. Ver el bloque `images` del kustomization.
+          # The image is imported by hand into the k3s containerd; there is no
+          # registry to pull it from. See the `images` block of the
+          # kustomization.
           imagePullPolicy: IfNotPresent
           envFrom:
             - configMapRef:
@@ -35,16 +36,16 @@ spec:
               memory: "192Mi"
               cpu: "100m"
             limits:
-              # Más holgado que el back: el SDK de Temporal levanta el bundle
-              # del workflow en un contexto de V8 aparte, y encima el núcleo en
-              # Rust tiene su propio pool de hilos.
+              # Looser than the back: the Temporal SDK loads the workflow
+              # bundle in a separate V8 context, and on top of that the Rust
+              # core has its own thread pool.
               memory: "768Mi"
               cpu: "1"
-          # Sin probes HTTP: el worker no escucha en ningún puerto. Su "estar
-          # vivo" es estar tomando tareas de la cola, y eso se mira desde la UI
-          # de Temporal (Workers de la task queue `form-generation`), no desde
-          # el kubelet. Una probe TCP contra un puerto que no existe sería peor
-          # que ninguna: reiniciaría pods sanos.
+          # No HTTP probes: the worker listens on no port. Its "being alive"
+          # is taking tasks from the queue, and that is looked at from the
+          # Temporal UI (Workers of the `form-generation` task queue), not from
+          # the kubelet. A TCP probe against a port that does not exist would be
+          # worse than none: it would restart healthy pods.
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -55,10 +56,10 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-      # El apagado ordenado del worker deja de tomar tareas nuevas y espera a
-      # que terminen las que están en curso. La actividad más larga es la
-      # llamada al modelo (120 s de timeout), así que el default de 30 s la
-      # cortaría por la mitad y Temporal tendría que reintentarla entera.
+      # The worker's orderly shutdown stops taking new tasks and waits for the
+      # in-flight ones to finish. The longest activity is the model call (120 s
+      # timeout), so the 30 s default would cut it in half and Temporal would
+      # have to retry it in full.
       terminationGracePeriodSeconds: 150
       volumes:
         - name: tmp

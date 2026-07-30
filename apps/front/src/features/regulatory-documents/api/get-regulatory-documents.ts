@@ -10,10 +10,10 @@ import {
 import type { AcceptedRegulatoryDocument } from '../types/regulatory-document';
 
 /**
- * Listado de documentos, del más reciente al más viejo.
+ * List of documents, from the most recent to the oldest.
  *
- * Devuelve la misma vista acotada que el alta (sin `mimeType` ni `updatedAt`):
- * el back sirve las dos con el mismo DTO.
+ * It returns the same narrow view as the upload (without `mimeType` and
+ * `updatedAt`): the back serves both with the same DTO.
  */
 export const getRegulatoryDocuments = (): Promise<
   AcceptedRegulatoryDocument[]

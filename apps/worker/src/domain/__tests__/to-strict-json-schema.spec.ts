@@ -4,28 +4,28 @@ import { generatedFormSchema } from '@ai-form-creator/contracts/form-generation/
 import { toStrictJsonSchema } from '../to-strict-json-schema';
 
 describe('toStrictJsonSchema', () => {
-  it('colapsa un `anyOf` de constantes a un `enum`', () => {
+  it('collapses an `anyOf` of constants into an `enum`', () => {
     const projected = toStrictJsonSchema({
-      description: 'Nivel',
+      description: 'Level',
       anyOf: [
-        { const: 'bajo', type: 'string' },
-        { const: 'alto', type: 'string' },
+        { const: 'low', type: 'string' },
+        { const: 'high', type: 'string' },
       ],
     });
 
     expect(projected).toEqual({
-      description: 'Nivel',
+      description: 'Level',
       type: 'string',
-      enum: ['bajo', 'alto'],
+      enum: ['low', 'high'],
     });
   });
 
-  it('deja el `anyOf` como está si mezcla tipos', () => {
-    // Colapsar acá perdería información: mejor mandar algo que el proveedor
-    // quizás entienda que algo que seguro miente.
+  it('leaves the `anyOf` as it is if it mixes types', () => {
+    // Collapsing here would lose information: better to send something the
+    // provider might understand than something that certainly lies.
     const projected = toStrictJsonSchema({
       anyOf: [
-        { const: 'bajo', type: 'string' },
+        { const: 'low', type: 'string' },
         { const: 1, type: 'number' },
       ],
     });
@@ -34,7 +34,7 @@ describe('toStrictJsonSchema', () => {
     expect(projected).not.toHaveProperty('enum');
   });
 
-  it('deja el `anyOf` como está si un miembro no es una constante pelada', () => {
+  it('leaves the `anyOf` as it is if a member is not a bare constant', () => {
     const projected = toStrictJsonSchema({
       anyOf: [{ type: 'string' }, { type: 'null' }],
     });
@@ -42,20 +42,20 @@ describe('toStrictJsonSchema', () => {
     expect(projected).toHaveProperty('anyOf');
   });
 
-  it('saca los `$id`, incluidos los anidados', () => {
+  it('strips the `$id`s, nested ones included', () => {
     const projected = toStrictJsonSchema({
-      $id: 'Raiz',
+      $id: 'Root',
       type: 'object',
-      properties: { campo: { $id: 'Anidado', type: 'string' } },
+      properties: { field: { $id: 'Nested', type: 'string' } },
     });
 
     expect(projected).not.toHaveProperty('$id');
-    expect(projected.properties).toEqual({ campo: { type: 'string' } });
+    expect(projected.properties).toEqual({ field: { type: 'string' } });
   });
 
-  it('saca `minItems` y `maxItems`, incluidos los anidados', () => {
-    // Gemini contesta 400 con ellos puestos sobre arreglos de objetos, y el
-    // mensaje no dice cuál argumento le molestó. Ver el punto 4 del módulo.
+  it('strips `minItems` and `maxItems`, nested ones included', () => {
+    // Gemini answers 400 with them set on arrays of objects, and the message
+    // does not say which argument bothered it. See point 4 of the module.
     const projected = toStrictJsonSchema({
       type: 'array',
       minItems: 1,
@@ -71,7 +71,7 @@ describe('toStrictJsonSchema', () => {
     expect(JSON.stringify(projected)).not.toMatch(/minItems|maxItems/);
   });
 
-  it('fuerza `additionalProperties: false` y todo `required` en cada objeto', () => {
+  it('forces `additionalProperties: false` and everything `required` on every object', () => {
     const projected = toStrictJsonSchema({
       type: 'object',
       properties: { a: { type: 'string' }, b: { type: 'number' } },
@@ -83,10 +83,10 @@ describe('toStrictJsonSchema', () => {
     });
   });
 
-  describe('sobre el schema real que viaja a LiteLLM', () => {
+  describe('over the real schema travelling to LiteLLM', () => {
     const projected = toStrictJsonSchema(generatedFormSchema);
 
-    it('deja el vocabulario de campos como un `enum` plano', () => {
+    it('leaves the field vocabulary as a flat `enum`', () => {
       const fields = projected.properties as Record<string, never>;
       const name = (
         fields.fields as { items: { properties: Record<string, unknown> } }
@@ -95,35 +95,36 @@ describe('toStrictJsonSchema', () => {
       expect(name.enum).toEqual(Object.values(formFieldNames));
     });
 
-    it('no deja ni un `$id` ni un `anyOf` en todo el árbol', () => {
-      // Es la garantía que importa: los dos son justo lo que los proveedores
-      // en modo `strict` rechazan o ignoran en silencio.
+    it('leaves neither a `$id` nor an `anyOf` anywhere in the tree', () => {
+      // This is the guarantee that matters: both are exactly what providers in
+      // `strict` mode reject or silently ignore.
       const serialized = JSON.stringify(projected);
 
       expect(serialized).not.toContain('$id');
       expect(serialized).not.toContain('anyOf');
     });
 
-    it('no deja restricciones de cardinalidad en ninguno de los dos arreglos', () => {
-      // `fields` traía `minItems`/`maxItems` y `options` traía `maxItems`: los
-      // tres tienen que quedar afuera o el request no sale de Gemini.
+    it('leaves no cardinality constraints on either of the two arrays', () => {
+      // `fields` carried `minItems`/`maxItems` and `options` carried
+      // `maxItems`: all three have to stay out or the request never leaves
+      // Gemini.
       const serialized = JSON.stringify(projected);
 
       expect(serialized).not.toContain('minItems');
       expect(serialized).not.toContain('maxItems');
     });
 
-    it('conserva el resto de las restricciones, que sí viajan', () => {
-      // El contrapeso del test de arriba: se saca lo que rompe, no todo lo que
-      // se parezca. `minLength`/`maxLength` pasan y valen — acotan el largo de
-      // los títulos sin costo.
+    it('keeps the rest of the constraints, which do travel', () => {
+      // The counterweight to the test above: what breaks is removed, not
+      // everything that looks like it. `minLength`/`maxLength` go through and
+      // are worth it — they bound the title lengths at no cost.
       const serialized = JSON.stringify(projected);
 
       expect(serialized).toContain('maxLength');
       expect(serialized).toContain('minLength');
     });
 
-    it('sigue siendo serializable a JSON sin perder nada', () => {
+    it('is still serialisable to JSON without losing anything', () => {
       expect(() => JSON.stringify(projected)).not.toThrow();
     });
   });

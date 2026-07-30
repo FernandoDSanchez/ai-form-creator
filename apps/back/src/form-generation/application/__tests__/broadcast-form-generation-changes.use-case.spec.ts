@@ -13,7 +13,7 @@ const EPOCH = new Date(0).toISOString();
 
 const aFormGeneration = (): FormGeneration => ({
   id: FORM_GENERATION_ID,
-  prompt: 'Formulario de declaración de importación.',
+  prompt: 'Import declaration form.',
   regulatoryDocumentIds: [],
   status: formGenerationStatuses.awaitingReview,
   attempts: 1,
@@ -26,7 +26,7 @@ const aFormGeneration = (): FormGeneration => ({
   updatedAt: EPOCH,
 });
 
-/** Feed controlable: el test dispara los avisos a mano. */
+/** A controllable feed: the test fires the notifications by hand. */
 const aChangeFeed = () => {
   const listeners: ((change: FormGenerationChange) => void)[] = [];
 
@@ -52,12 +52,12 @@ const aChangeFeed = () => {
 
 const aChange = (): FormGenerationChange => ({
   formGenerationId: FORM_GENERATION_ID,
-  // El aviso trae el estado, pero es sólo una pista: lo que se publica sale de
-  // releer la fila.
+  // The notification carries the status, but it is only a hint: what gets
+  // published comes from re-reading the row.
   status: formGenerationStatuses.generating,
 });
 
-/** Deja que corra la microtarea que el listener encadenó. */
+/** Lets the microtask the listener chained actually run. */
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 describe('BroadcastFormGenerationChangesUseCase', () => {
@@ -71,9 +71,9 @@ describe('BroadcastFormGenerationChangesUseCase', () => {
 
   const aPublisher = (): FormGenerationPublisher => ({ publish: jest.fn() });
 
-  it('relee la fila y publica la entidad completa, no el payload del aviso', async () => {
-    // El trigger sólo puede mandar id y estado: el payload de `pg_notify` tiene
-    // un tope de 8 KB y el schema de Formily lo pasa.
+  it('re-reads the row and publishes the whole entity, not the notification payload', async () => {
+    // The trigger can only send id and status: the `pg_notify` payload is
+    // capped at 8 KB and the Formily schema goes over it.
     const publisher = aPublisher();
     const changes = aChangeFeed();
 
@@ -90,7 +90,7 @@ describe('BroadcastFormGenerationChangesUseCase', () => {
     expect(publisher.publish).toHaveBeenCalledWith(aFormGeneration());
   });
 
-  it('no publica nada si la fila ya no está', async () => {
+  it('publishes nothing if the row is gone', async () => {
     const publisher = aPublisher();
     const changes = aChangeFeed();
 
@@ -107,15 +107,15 @@ describe('BroadcastFormGenerationChangesUseCase', () => {
     expect(publisher.publish).not.toHaveBeenCalled();
   });
 
-  it('reporta el error sin dejar la promesa suelta', async () => {
-    // El listener del feed es síncrono (lo llama un evento del socket de
-    // Postgres): una excepción que se escape acá termina en
-    // `unhandledRejection`, que con la config por defecto de Node tumba el pod.
+  it('reports the error without leaving the promise loose', async () => {
+    // The feed listener is synchronous (a Postgres socket event calls it): an
+    // exception escaping here ends up in `unhandledRejection`, which with
+    // Node's default config takes the pod down.
     const onError = jest.fn();
     const changes = aChangeFeed();
     const broken: FormGenerationRepository = {
       create: jest.fn(),
-      findById: jest.fn().mockRejectedValue(new Error('base caída')),
+      findById: jest.fn().mockRejectedValue(new Error('database down')),
       findAll: jest.fn(),
     };
 
@@ -132,7 +132,7 @@ describe('BroadcastFormGenerationChangesUseCase', () => {
     expect(onError).toHaveBeenCalledTimes(1);
   });
 
-  it('se desuscribe al parar', () => {
+  it('unsubscribes when stopped', () => {
     const changes = aChangeFeed();
     const useCase = new BroadcastFormGenerationChangesUseCase(
       aRepository(),

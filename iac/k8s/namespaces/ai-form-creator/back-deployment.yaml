@@ -12,20 +12,21 @@ spec:
       labels:
         app: back
     spec:
-      # Las migraciones corren antes que la app, no desde la app: con 2 réplicas
-      # dos procesos migrarían a la vez. Prisma toma un advisory lock, así que
-      # el segundo initContainer espera al primero en vez de chocar.
+      # Migrations run before the app, not from the app: with 2 replicas two
+      # processes would migrate at once. Prisma takes an advisory lock, so the
+      # second initContainer waits for the first instead of clashing.
       initContainers:
         - name: migrate
           image: ai-form-creator/back
-          # La imagen se importa a mano al containerd de k3s; no hay registry
-          # del que bajarla. Ver el bloque `images` del kustomization.
+          # The image is imported by hand into the k3s containerd; there is no
+          # registry to pull it from. See the `images` block of the
+          # kustomization.
           imagePullPolicy: IfNotPresent
           command:
             ["node", "node_modules/prisma/build/index.js", "migrate", "deploy"]
           env:
-            # El CLI de Prisma escribe caché en $HOME; el rootfs es de sólo
-            # lectura y /tmp es el único emptyDir montado.
+            # The Prisma CLI writes a cache into $HOME; the rootfs is
+            # read-only and /tmp is the only emptyDir mounted.
             - name: HOME
               value: /tmp
           envFrom:
@@ -50,10 +51,8 @@ spec:
               mountPath: /tmp
       containers:
         - name: back
-          # NestJS + Prisma. El cableado a Postgres / RAGFlow sale de
-          # back-config (no secreto) y back-secret (DATABASE_URL, API keys).
-          # Temporal todavía no está conectado: TEMPORAL_ADDRESS queda listo
-          # para cuando exista esa capa.
+          # NestJS + Prisma. The wiring to Postgres / RAGFlow comes from
+          # back-config (non-secret) and back-secret (DATABASE_URL, API keys).
           image: ai-form-creator/back
           imagePullPolicy: IfNotPresent
           ports:

@@ -6,18 +6,18 @@ import { Worker } from '@temporalio/worker';
 import type { FormGenerationActivities } from '../../domain/ports/form-generation-activities.port';
 
 /**
- * Este archivo prueba el **orden y las garantías** del workflow, no la lógica de
- * generar: las actividades son dobles.
+ * This file tests the **order and the guarantees** of the workflow, not the
+ * logic of generating: the activities are doubles.
  *
- * Lo que motivó escribirlo fue un fallo real en el despliegue. LiteLLM devolvió
- * 404 (habían retirado el modelo), el workflow murió como corresponde… y la fila
- * quedó en GENERATING para siempre, porque nadie escribió el fallo. Temporal lo
- * registraba, pero la base no, y sin cambio de estado no hay `NOTIFY`: el front
- * se quedó mostrando «Redactando…» indefinidamente.
+ * What motivated writing it was a real failure in the deployment. LiteLLM
+ * returned 404 (the model had been withdrawn), the workflow died as it should…
+ * and the row stayed in GENERATING forever, because nobody wrote the failure
+ * down. Temporal recorded it, but the database did not, and without a status
+ * change there is no `NOTIFY`: the front kept showing "Drafting…"
+ * indefinitely.
  *
- * Corre contra el servidor de prueba del SDK, que arranca un Temporal de
- * verdad en memoria y salta el tiempo. Por eso una espera de 30 días tarda
- * milisegundos.
+ * It runs against the SDK's test server, which starts a real Temporal in memory
+ * and skips time. That is why a 30-day wait takes milliseconds.
  */
 
 const TASK_QUEUE = 'test-form-generation';
@@ -25,17 +25,17 @@ const FORM_GENERATION_ID = '7c9e6679-7425-40de-944b-e07fc1f90ae7';
 
 const anInput = (): GenerateFormWorkflowInput => ({
   formGenerationId: FORM_GENERATION_ID,
-  prompt: 'Formulario de declaración de importación.',
+  prompt: 'Import declaration form.',
   regulatoryDocuments: [],
 });
 
 const aDraft = () => ({
-  title: 'Declaración de importación',
+  title: 'Import declaration',
   description: '',
   fields: [
     {
       name: 'entityLegalName' as const,
-      title: 'Razón social',
+      title: 'Legal name',
       component: 'TextField' as const,
       isRequired: true,
       helpText: '',
@@ -45,7 +45,7 @@ const aDraft = () => ({
   ],
 });
 
-/** Dobles que registran lo que se les pidió. */
+/** Doubles that record what they were asked for. */
 const createActivities = (
   overrides: Partial<FormGenerationActivities> = {},
 ): FormGenerationActivities => ({
@@ -98,12 +98,12 @@ describe('generateForm', () => {
     });
   };
 
-  it('marca FAILED en la base cuando una actividad falla sin remedio', async () => {
-    // El caso exacto que se rompió en producción: LiteLLM devolviendo 404.
+  it('marks FAILED in the database when an activity fails beyond repair', async () => {
+    // The exact case that broke in production: LiteLLM returning 404.
     const activities = createActivities({
       requestFormDraft: jest
         .fn()
-        .mockRejectedValue(new Error('LiteLLM respondió HTTP 404')),
+        .mockRejectedValue(new Error('LiteLLM answered HTTP 404')),
     });
 
     await expect(runWith(activities)).rejects.toThrow();
@@ -113,11 +113,11 @@ describe('generateForm', () => {
     );
   });
 
-  it('propaga el motivo real y no el «Activity task failed» de Temporal', async () => {
+  it('propagates the real reason and not Temporal\'s "Activity task failed"', async () => {
     const activities = createActivities({
       requestFormDraft: jest
         .fn()
-        .mockRejectedValue(new Error('el modelo ya no está disponible')),
+        .mockRejectedValue(new Error('the model is no longer available')),
     });
 
     await expect(runWith(activities)).rejects.toThrow();
@@ -126,15 +126,15 @@ describe('generateForm', () => {
       -1,
     ) as [{ reason: string }];
 
-    expect(call.reason).toContain('el modelo ya no está disponible');
+    expect(call.reason).toContain('the model is no longer available');
   });
 
-  it('se detiene en AWAITING_REVIEW y espera: la IA no publica sola', async () => {
+  it('halts at AWAITING_REVIEW and waits: the AI does not publish on its own', async () => {
     const activities = createActivities();
 
     const status = await runWith(activities, async (handle) => {
-      // El workflow tiene que seguir vivo hasta que llegue la señal. Si
-      // publicara solo, `result()` habría resuelto sin esto.
+      // The workflow has to stay alive until the signal arrives. If it
+      // published on its own, `result()` would have resolved without this.
       await handle.signal('review', {
         decision: 'APPROVE',
         reviewerNote: 'ok',
@@ -148,21 +148,21 @@ describe('generateForm', () => {
     expect(status).toBe(formGenerationStatuses.approved);
   });
 
-  it('reintenta con los errores adentro y se rinde tras el tope', async () => {
+  it('retries with the errors inside and gives up after the cap', async () => {
     const activities = createActivities({
       validateFormDraft: jest
         .fn()
-        .mockResolvedValue({ isValid: false, problems: ['falta `options`'] }),
+        .mockResolvedValue({ isValid: false, problems: ['`options` missing'] }),
     });
 
     const status = await runWith(activities);
 
-    // Tres intentos, y a partir del segundo el prompt lleva los problemas del
-    // anterior: eso es lo que separa un reintento útil de repetir el pedido.
+    // Three attempts, and from the second one the prompt carries the previous
+    // problems: that is what separates a useful retry from repeating the ask.
     expect(activities.requestFormDraft).toHaveBeenCalledTimes(3);
     expect(
       (activities.requestFormDraft as jest.Mock).mock.calls[1]?.[0].problems,
-    ).toEqual(['falta `options`']);
+    ).toEqual(['`options` missing']);
     expect(activities.saveGeneratedForm).not.toHaveBeenCalled();
     expect(status).toBe(formGenerationStatuses.failed);
   });

@@ -3,21 +3,22 @@ import { Type, type Static } from '@sinclair/typebox';
 import { formFieldComponents } from './form-field-component.js';
 
 /**
- * Vocabulario cerrado de campos que un formulario puede tener.
+ * Closed vocabulary of fields a form may have.
  *
- * Es la pieza que vuelve verificable lo que genera la IA. Sin esta lista, el
- * modelo inventaría `nombre_empresa`, `razonSocial` y `companyName` para lo
- * mismo, y ningún consumidor podría leer dos formularios con el mismo código.
- * Con ella, el `name` de cada campo del JSON de Formily sale de un enum: lo
- * valida el structured output y lo vuelve a validar el workflow.
+ * This is the piece that makes what the AI generates verifiable. Without this
+ * list the model would invent `company_name`, `legalName` and `companyName` for
+ * the same thing, and no consumer could read two forms with the same code. With
+ * it, the `name` of every field of the Formily JSON comes from an enum: the
+ * structured output validates it and the workflow validates it again.
  *
- * Agregar un campo es agregar una fila acá **y** su entrada en
- * `formFieldCatalog`, que es un `Record` sobre este mismo tipo: si falta la
- * descripción, no compila. Esa descripción no es documentación decorativa —
- * viaja en el prompt y es lo único que el modelo tiene para elegir bien.
+ * Adding a field means adding a row here **and** its entry in
+ * `formFieldCatalog`, which is a `Record` over this very type: if the
+ * description is missing, it does not compile. That description is not
+ * decorative documentation — it travels in the prompt and is the only thing the
+ * model has to choose well.
  */
 
-/** Núcleo transversal: sirve para cualquier documento regulatorio. */
+/** Cross-cutting core: useful for any regulatory document. */
 const complianceFieldNames = {
   entityLegalName: 'entityLegalName',
   entityTaxId: 'entityTaxId',
@@ -39,7 +40,7 @@ const complianceFieldNames = {
   declarationAccepted: 'declarationAccepted',
 } as const;
 
-/** Aduana y comercio exterior: el dominio del dataset que hoy está cargado. */
+/** Customs and foreign trade: the domain of the dataset loaded today. */
 const customsFieldNames = {
   importerTaxId: 'importerTaxId',
   exporterName: 'exporterName',
@@ -67,12 +68,12 @@ export const formFieldNames = {
 export const formFieldNameSchema = /* @__PURE__ */ Type.Enum(formFieldNames, {
   $id: 'FormFieldName',
   description:
-    'Identificador del campo. Sólo se admiten los de esta lista cerrada.',
+    'Identifier of the field. Only the ones in this closed list are accepted.',
 });
 
 export type FormFieldName = Static<typeof formFieldNameSchema>;
 
-/** Los dos bloques del vocabulario, para agrupar en el prompt y en la UI. */
+/** The two blocks of the vocabulary, for grouping in the prompt and in the UI. */
 export const formFieldGroups = {
   compliance: 'compliance',
   customs: 'customs',
@@ -82,232 +83,229 @@ export type FormFieldGroup =
   (typeof formFieldGroups)[keyof typeof formFieldGroups];
 
 export type FormFieldDefinition = {
-  /** Título por defecto, en español, si el modelo no propone uno mejor. */
+  /** Default title, if the model does not propose a better one. */
   label: string;
-  /** Qué significa el campo. Es lo que lee el modelo para elegir. */
+  /** What the field means. This is what the model reads to choose. */
   description: string;
-  /** Componente natural del campo; el modelo puede apartarse con motivo. */
+  /** Natural component for the field; the model may deviate with reason. */
   component: (typeof formFieldComponents)[keyof typeof formFieldComponents];
   group: FormFieldGroup;
 };
 
 /**
- * Diccionario del vocabulario. `Record<FormFieldName, …>` a propósito: un campo
- * nuevo en el enum rompe la compilación acá hasta que alguien lo describa.
+ * Dictionary of the vocabulary. `Record<FormFieldName, …>` on purpose: a new
+ * field in the enum breaks compilation here until somebody describes it.
  */
 export const formFieldCatalog: Record<FormFieldName, FormFieldDefinition> = {
-  // --- núcleo de cumplimiento ---
+  // --- compliance core ---
   [formFieldNames.entityLegalName]: {
-    label: 'Razón social',
-    description: 'Nombre legal completo del sujeto obligado.',
+    label: 'Legal name',
+    description: 'Full legal name of the regulated entity.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.entityTaxId]: {
-    label: 'Identificación tributaria',
-    description:
-      'Número de identificación fiscal del sujeto obligado (RIF, RUC, NIT).',
+    label: 'Tax identification',
+    description: 'Tax identification number of the regulated entity.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.entityCountry]: {
-    label: 'País de constitución',
-    description: 'País donde está constituida legalmente la entidad.',
+    label: 'Country of incorporation',
+    description: 'Country where the entity is legally incorporated.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.economicActivity]: {
-    label: 'Actividad económica',
-    description: 'Actividad económica principal declarada por la entidad.',
+    label: 'Economic activity',
+    description: 'Main economic activity declared by the entity.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.contactPersonName]: {
-    label: 'Responsable de cumplimiento',
-    description: 'Persona designada como contacto para el trámite.',
+    label: 'Compliance officer',
+    description: 'Person designated as the contact for the filing.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.contactEmail]: {
-    label: 'Correo de contacto',
-    description: 'Correo electrónico al que se notifican las observaciones.',
+    label: 'Contact email',
+    description: 'Email address where findings are notified.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.regulationReference]: {
-    label: 'Norma aplicable',
+    label: 'Applicable regulation',
     description:
-      'Referencia a la norma, resolución o artículo que origina la obligación.',
+      'Reference to the regulation, resolution or article the obligation comes from.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.obligationDescription]: {
-    label: 'Obligación',
-    description: 'Descripción de la obligación regulatoria que se atiende.',
+    label: 'Obligation',
+    description: 'Description of the regulatory obligation being addressed.',
     component: formFieldComponents.textarea,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.controlDescription]: {
-    label: 'Control implementado',
-    description:
-      'Control, procedimiento o medida con la que se atiende la obligación.',
+    label: 'Implemented control',
+    description: 'Control, procedure or measure used to meet the obligation.',
     component: formFieldComponents.textarea,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.riskLevel]: {
-    label: 'Nivel de riesgo',
+    label: 'Risk level',
     description:
-      'Riesgo asociado, en una escala cerrada (por ejemplo bajo, medio, alto).',
+      'Associated risk, on a closed scale (for example low, medium, high).',
     component: formFieldComponents.radioGroup,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.complianceStatus]: {
-    label: 'Estado de cumplimiento',
+    label: 'Compliance status',
     description:
-      'Grado de cumplimiento declarado (cumple, cumple parcialmente, no cumple).',
+      'Declared degree of compliance (compliant, partially compliant, non-compliant).',
     component: formFieldComponents.select,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.evidenceDescription]: {
-    label: 'Evidencia',
-    description: 'Documentos o registros que respaldan lo declarado.',
+    label: 'Evidence',
+    description: 'Documents or records backing what is declared.',
     component: formFieldComponents.textarea,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.responsibleParty]: {
-    label: 'Área responsable',
-    description: 'Unidad o cargo responsable de sostener el control.',
+    label: 'Responsible area',
+    description: 'Unit or role responsible for sustaining the control.',
     component: formFieldComponents.text,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.assessmentDate]: {
-    label: 'Fecha de evaluación',
-    description: 'Fecha en que se evaluó el cumplimiento.',
+    label: 'Assessment date',
+    description: 'Date on which compliance was assessed.',
     component: formFieldComponents.date,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.effectiveDate]: {
-    label: 'Vigente desde',
-    description: 'Fecha desde la que rige lo declarado.',
+    label: 'Effective from',
+    description: 'Date from which the declaration is in force.',
     component: formFieldComponents.date,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.expirationDate]: {
-    label: 'Vence el',
-    description: 'Fecha en que caduca la vigencia o el permiso.',
+    label: 'Expires on',
+    description: 'Date on which the validity or the permit expires.',
     component: formFieldComponents.date,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.observations]: {
-    label: 'Observaciones',
-    description: 'Comentarios libres del declarante.',
+    label: 'Observations',
+    description: 'Free-form comments from the filer.',
     component: formFieldComponents.textarea,
     group: formFieldGroups.compliance,
   },
   [formFieldNames.declarationAccepted]: {
-    label: 'Declaración jurada',
+    label: 'Sworn declaration',
     description:
-      'Confirmación de que lo declarado es cierto y de que se conocen las sanciones.',
+      'Confirmation that the declaration is true and that the penalties are known.',
     component: formFieldComponents.checkbox,
     group: formFieldGroups.compliance,
   },
 
-  // --- aduana y comercio exterior ---
+  // --- customs and foreign trade ---
   [formFieldNames.importerTaxId]: {
-    label: 'Identificación del importador',
-    description: 'Número fiscal del importador registrado ante la aduana.',
+    label: 'Importer identification',
+    description: 'Tax number of the importer registered with customs.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.exporterName]: {
-    label: 'Exportador',
-    description: 'Nombre o razón social del exportador en el país de origen.',
+    label: 'Exporter',
+    description: 'Name or legal name of the exporter in the country of origin.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.customsRegime]: {
-    label: 'Régimen aduanero',
+    label: 'Customs regime',
     description:
-      'Régimen bajo el que se declara la mercancía (importación definitiva, admisión temporal, tránsito…).',
+      'Regime the goods are declared under (definitive import, temporary admission, transit…).',
     component: formFieldComponents.select,
     group: formFieldGroups.customs,
   },
   [formFieldNames.hsTariffCode]: {
-    label: 'Código arancelario',
-    description:
-      'Partida arancelaria del Sistema Armonizado que clasifica la mercancía.',
+    label: 'Tariff code',
+    description: 'Harmonized System tariff heading that classifies the goods.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.merchandiseDescription]: {
-    label: 'Descripción de la mercancía',
-    description: 'Detalle comercial de lo que se declara.',
+    label: 'Description of the goods',
+    description: 'Commercial detail of what is being declared.',
     component: formFieldComponents.textarea,
     group: formFieldGroups.customs,
   },
   [formFieldNames.originCountry]: {
-    label: 'País de origen',
-    description: 'País donde se produjo o manufacturó la mercancía.',
+    label: 'Country of origin',
+    description: 'Country where the goods were produced or manufactured.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.portOfEntry]: {
-    label: 'Aduana de ingreso',
-    description: 'Puerto, aeropuerto o aduana por donde entra la mercancía.',
+    label: 'Port of entry',
+    description: 'Port, airport or customs office the goods come in through.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.transportMode]: {
-    label: 'Modo de transporte',
-    description: 'Vía por la que llega la carga (marítima, aérea, terrestre).',
+    label: 'Mode of transport',
+    description: 'Way the cargo arrives (sea, air, land).',
     component: formFieldComponents.select,
     group: formFieldGroups.customs,
   },
   [formFieldNames.billOfLadingNumber]: {
-    label: 'Conocimiento de embarque',
-    description: 'Número del BL, guía aérea o carta de porte.',
+    label: 'Bill of lading',
+    description: 'Number of the BL, air waybill or consignment note.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.customsDeclarationNumber]: {
-    label: 'Número de declaración',
-    description: 'Número de la declaración aduanera asociada.',
+    label: 'Declaration number',
+    description: 'Number of the associated customs declaration.',
     component: formFieldComponents.text,
     group: formFieldGroups.customs,
   },
   [formFieldNames.declaredValue]: {
-    label: 'Valor declarado',
-    description: 'Valor en aduana de la mercancía, en la moneda declarada.',
+    label: 'Declared value',
+    description: 'Customs value of the goods, in the declared currency.',
     component: formFieldComponents.number,
     group: formFieldGroups.customs,
   },
   [formFieldNames.currencyCode]: {
-    label: 'Moneda',
-    description: 'Moneda del valor declarado, en código ISO 4217.',
+    label: 'Currency',
+    description: 'Currency of the declared value, as an ISO 4217 code.',
     component: formFieldComponents.select,
     group: formFieldGroups.customs,
   },
   [formFieldNames.grossWeightKg]: {
-    label: 'Peso bruto (kg)',
-    description: 'Peso bruto total de la carga en kilogramos.',
+    label: 'Gross weight (kg)',
+    description: 'Total gross weight of the cargo in kilograms.',
     component: formFieldComponents.number,
     group: formFieldGroups.customs,
   },
   [formFieldNames.packageCount]: {
-    label: 'Cantidad de bultos',
-    description: 'Número de bultos, cajas o contenedores declarados.',
+    label: 'Number of packages',
+    description: 'Number of packages, boxes or containers declared.',
     component: formFieldComponents.number,
     group: formFieldGroups.customs,
   },
   [formFieldNames.arrivalDate]: {
-    label: 'Fecha de arribo',
-    description: 'Fecha de llegada de la carga a la aduana de ingreso.',
+    label: 'Arrival date',
+    description: 'Date the cargo arrives at the port of entry.',
     component: formFieldComponents.date,
     group: formFieldGroups.customs,
   },
   [formFieldNames.dutiesPaid]: {
-    label: 'Tributos cancelados',
-    description: 'Confirmación de que se pagaron los tributos aduaneros.',
+    label: 'Duties paid',
+    description: 'Confirmation that customs duties have been paid.',
     component: formFieldComponents.checkbox,
     group: formFieldGroups.customs,
   },

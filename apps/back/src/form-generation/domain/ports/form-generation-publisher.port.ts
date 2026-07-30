@@ -1,15 +1,16 @@
 import type { FormGeneration } from '../form-generation';
 
 /**
- * Puerto de salida para avisarle al mundo que una solicitud cambió.
+ * Outbound port to tell the world that a request changed.
  *
- * El nombre no dice «WebSocket» ni «socket.io» (`CLAUDE.md` §9): el núcleo
- * publica, y por dónde sale lo decide el módulo. Hoy lo tapa un gateway de
- * socket.io; mañana podría ser SSE sin tocar el caso de uso.
+ * The name says neither "WebSocket" nor "socket.io" (`CLAUDE.md` §9): the core
+ * publishes, and where that goes out is decided by the module. Today a
+ * socket.io gateway covers it; tomorrow it could be SSE without touching the
+ * use case.
  *
- * Devuelve `void` y no una promesa a propósito: publicar es best-effort. Si no
- * hay nadie escuchando esa solicitud, no pasó nada — el estado está en la base
- * y el front lo recupera con un GET.
+ * It returns `void` and not a promise on purpose: publishing is best-effort. If
+ * nobody is listening to that request, nothing happened — the status is in the
+ * database and the front recovers it with a GET.
  */
 export type FormGenerationPublisher = {
   publish(formGeneration: FormGeneration): void;

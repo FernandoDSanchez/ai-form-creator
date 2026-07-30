@@ -1,21 +1,21 @@
 # @ai-form-creator/contracts
 
-Contratos que cruzan la frontera HTTP, declarados **una sola vez** con
-[TypeBox](https://github.com/sinclairzx81/typebox). `apps/back` y `apps/front`
-consumen la misma definición: si un campo cambia acá, las dos apps dejan de
-compilar hasta que se acomoden.
+Contracts that cross the HTTP border, declared **exactly once** with
+[TypeBox](https://github.com/sinclairzx81/typebox). `apps/back` and `apps/front`
+consume the same definition: if a field changes here, both apps stop compiling
+until they catch up.
 
-Cada contrato exporta las dos caras del mismo objeto:
+Every contract exports the two faces of the same object:
 
-- el **schema** (`regulatoryDocumentSchema`) — JSON Schema en runtime, sirve
-  para validar y para documentar;
-- el **tipo** (`RegulatoryDocument`) — derivado con `Static<typeof …>`, no se
-  escribe a mano.
+- the **schema** (`regulatoryDocumentSchema`) — JSON Schema at runtime, used to
+  validate and to document;
+- the **type** (`RegulatoryDocument`) — derived with `Static<typeof …>`, never
+  written by hand.
 
-## Cómo se importa
+## How it is imported
 
-No hay barrel (`index.ts`): se importa el archivo concreto, igual que en
-`apps/front` (`CLAUDE.md` §1). Las rutas de import replican las de `src/`.
+There is no barrel (`index.ts`): the concrete file is imported, just like in
+`apps/front` (`CLAUDE.md` §1). Import paths mirror those of `src/`.
 
 ```ts
 import {
@@ -26,48 +26,50 @@ import {
 import { regulatoryDocumentStatuses } from '@ai-form-creator/contracts/regulatory-documents/regulatory-document-status';
 ```
 
-## Fechas
+## Dates
 
-Viajan como **string ISO 8601**, no como `Date`. Lo que cruza el cable es JSON:
-tipar `createdAt: Date` haría que el front creyera tener un `Date` cuando lo
-que recibe es un string. La conversión ocurre en un solo lugar, el mapper de
-Prisma del back (`infrastructure/persistence/regulatory-document.mapper.ts`).
+They travel as **ISO 8601 strings**, not as `Date`. What crosses the wire is
+JSON: typing `createdAt: Date` would make the front believe it has a `Date` when
+what it receives is a string. The conversion happens in a single place, the
+back's Prisma mapper
+(`infrastructure/persistence/regulatory-document.mapper.ts`).
 
-## Consumo
+## Consumption
 
-El paquete se distribuye compilado (`dist/`, ignorado por git), en CommonJS y
-ESM a la vez: `apps/back` es CJS (NestJS) y `apps/front` es ESM (Vite).
+The package is distributed compiled (`dist/`, ignored by git), in CommonJS and
+ESM at the same time: `apps/back` is CJS (NestJS) and `apps/front` is ESM
+(Vite).
 
 ```bash
 npm install
-npm run build  # cjs + esm + marcador de módulo
+npm run build  # cjs + esm + module marker
 npm run check-types
 ```
 
-`apps/back` lo declara como dependencia local:
+`apps/back` declares it as a local dependency:
 
 ```json
 "@ai-form-creator/contracts": "file:../../packages/contracts"
 ```
 
-npm lo enlaza por symlink, así que un `npm run build` acá se ve al toque desde
-la app, sin reinstalar nada.
+npm links it through a symlink, so an `npm run build` here is visible from the
+app right away, without reinstalling anything.
 
-**En un clone nuevo hay que compilarlo antes de tocar las apps** — `dist/` no
-va al repo. Desde `apps/back` hay un atajo:
+**In a fresh clone it has to be compiled before touching the apps** — `dist/`
+does not go into the repo. From `apps/back` there is a shortcut:
 
 ```bash
-npm run contracts:build   # install + build de este paquete
+npm run contracts:build   # install + build of this package
 ```
 
-A propósito **no** hay script `prepare`: npm lo ejecutaría durante el
-`npm install` de la app que enlaza el paquete, cuando las devDependencies de
-acá todavía no existen, y el install fallaría con un `tsc: not found` bastante
-opaco. Compilar es un paso explícito.
+There is deliberately **no** `prepare` script: npm would run it during the
+`npm install` of the app linking the package, when the devDependencies here do
+not exist yet, and the install would fail with a fairly opaque `tsc: not found`.
+Compiling is an explicit step.
 
-## Agregar un contrato
+## Adding a contract
 
-1. Creá `src/<contexto>/<entidad>.ts` con el schema y su `Static<>`.
-2. Compilá (`npm run build`).
-3. Importalo desde las apps por su subpath — el wildcard de `exports` ya lo
-   cubre, no hay que tocar el `package.json`.
+1. Create `src/<context>/<entity>.ts` with the schema and its `Static<>`.
+2. Compile (`npm run build`).
+3. Import it from the apps by its subpath — the `exports` wildcard already
+   covers it, no need to touch the `package.json`.

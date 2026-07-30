@@ -26,7 +26,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# editores
+# editors
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
@@ -38,17 +38,18 @@ pnpm-debug.log*
 *.sln
 *.sw?
 
-# stack RAGFlow local (checkout independiente, no forma parte de esta app)
-# Anclado a la raíz a propósito: sin la barra, este patrón también ignoraba
-# iac/k8s/components/apps/rag/ragflow/ (el componente Kustomize, que SÍ va al repo).
+# local RAGFlow stack (independent checkout, not part of this app)
+# Anchored to the root on purpose: without the slash, this pattern also ignored
+# iac/k8s/components/apps/rag/ragflow/ (the Kustomize component, which DOES go
+# into the repo).
 /ragflow
 
-# iac — secretos de tenant. Los .env de forjate no se llaman ".env", así que
-# los patrones de arriba no los cubren.
+# iac — tenant secrets. The forjate .env files are not called ".env", so the
+# patterns above do not cover them.
 iac/**/secrets/*.env
 !iac/**/secrets/*.env.example
 
-# credenciales de cluster: nunca al repo
+# cluster credentials: never into the repo
 kubeconfig
 *.kubeconfig
 *.pem
@@ -56,5 +57,7 @@ kubeconfig
 *.p12
 *.pfx
 
-# herramientas locales
+# local tooling
 .claude/settings.local.json
+HUMAN-TASK.md
+

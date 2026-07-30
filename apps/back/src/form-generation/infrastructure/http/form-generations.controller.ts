@@ -32,13 +32,13 @@ import { RequestFormGenerationDto } from './dto/request-form-generation.dto';
 import { ReviewFormGenerationDto } from './dto/review-form-generation.dto';
 
 /**
- * Adaptador de entrada. Traduce HTTP ↔ dominio y nada más: ninguna regla de
- * negocio vive acá.
+ * Inbound adapter. It translates HTTP ↔ domain and nothing else: no business
+ * rule lives here.
  *
- * Los GET existen aunque el front escuche por WebSocket. No son redundantes:
- * el WS trae los cambios *desde que te conectaste*, y hace falta un punto de
- * partida al abrir la pantalla. Además son la red de seguridad si el socket no
- * llega a conectar.
+ * The GETs exist even though the front listens over WebSocket. They are not
+ * redundant: the WS brings the changes *from the moment you connected*, and a
+ * starting point is needed when opening the screen. They are also the safety
+ * net if the socket never manages to connect.
  */
 @ApiTags('form-generations')
 @Controller('form-generations')
@@ -54,21 +54,21 @@ export class FormGenerationsController {
   @Post()
   @HttpCode(HttpStatus.ACCEPTED)
   @ApiOperation({
-    summary: 'Pide la generación de un formulario',
+    summary: 'Requests the generation of a form',
     description:
-      'Fase síncrona: valida los documentos, escribe la solicitud en PENDING ' +
-      'y encola el workflow. Responde sin esperar al modelo — el avance llega ' +
-      'por el WebSocket de /form-generations.',
+      'Synchronous phase: validates the documents, writes the request as ' +
+      'PENDING and enqueues the workflow. It answers without waiting for the ' +
+      'model — progress arrives over the /form-generations WebSocket.',
   })
   @ApiAcceptedResponse({
-    description: 'Solicitud aceptada; la generación sigue en segundo plano.',
+    description: 'Request accepted; generation continues in the background.',
     type: FormGenerationResponse,
   })
   @ApiBadRequestResponse({
     description:
-      'El prompt no cumple los límites o hay documentos que no existen.',
+      'The prompt does not meet the limits, or some documents do not exist.',
   })
-  @ApiBadGatewayResponse({ description: 'No se pudo encolar el workflow.' })
+  @ApiBadGatewayResponse({ description: 'The workflow could not be enqueued.' })
   async request(
     @Body() body: RequestFormGenerationDto,
   ): Promise<FormGenerationResponse> {
@@ -82,24 +82,25 @@ export class FormGenerationsController {
 
   @Get()
   @ApiOperation({
-    summary: 'Lista las solicitudes, de la más nueva a la más vieja',
+    summary: 'Lists the requests, from the newest to the oldest',
   })
   @ApiOkResponse({ type: [FormGenerationResponse] })
   async list(): Promise<FormGenerationResponse[]> {
     const formGenerations = await this.listFormGenerations.execute();
 
-    // Arrow y no `.map(FormGenerationResponse.from)`: pasar un método estático
-    // como callback lo desprende de su clase, y `@typescript-eslint/unbound-method`
-    // lo marca aunque acá `from` no use `this`.
+    // An arrow and not `.map(FormGenerationResponse.from)`: passing a static
+    // method as a callback detaches it from its class, and
+    // `@typescript-eslint/unbound-method` flags it even though `from` does not
+    // use `this` here.
     return formGenerations.map((formGeneration) =>
       FormGenerationResponse.from(formGeneration),
     );
   }
 
   @Get(':formGenerationId')
-  @ApiOperation({ summary: 'Estado actual de una solicitud' })
+  @ApiOperation({ summary: 'Current status of a request' })
   @ApiOkResponse({ type: FormGenerationResponse })
-  @ApiNotFoundResponse({ description: 'No existe esa solicitud.' })
+  @ApiNotFoundResponse({ description: 'That request does not exist.' })
   async detail(
     @Param('formGenerationId', ParseUUIDPipe) formGenerationId: string,
   ): Promise<FormGenerationResponse> {
@@ -112,18 +113,18 @@ export class FormGenerationsController {
   @Post(':formGenerationId/review')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({
-    summary: 'Aprueba o rechaza un formulario generado',
+    summary: 'Approves or rejects a generated form',
     description:
-      'Le acerca el veredicto al workflow, que está detenido esperándolo. El ' +
-      'estado final lo escribe el worker, así que la respuesta no lo trae: ' +
-      'llega por el WebSocket como cualquier otro cambio.',
+      'Hands the verdict over to the workflow, which is halted waiting for ' +
+      'it. The final status is written by the worker, so the response does ' +
+      'not carry it: it arrives over the WebSocket like any other change.',
   })
-  @ApiNoContentResponse({ description: 'Veredicto entregado.' })
-  @ApiNotFoundResponse({ description: 'No existe esa solicitud.' })
+  @ApiNoContentResponse({ description: 'Verdict delivered.' })
+  @ApiNotFoundResponse({ description: 'That request does not exist.' })
   @ApiConflictResponse({
-    description: 'La solicitud no está esperando revisión.',
+    description: 'The request is not awaiting review.',
   })
-  @ApiBadGatewayResponse({ description: 'No se pudo entregar el veredicto.' })
+  @ApiBadGatewayResponse({ description: 'The verdict could not be delivered.' })
   async review(
     @Param('formGenerationId', ParseUUIDPipe) formGenerationId: string,
     @Body() body: ReviewFormGenerationDto,

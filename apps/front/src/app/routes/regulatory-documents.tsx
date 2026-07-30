@@ -3,8 +3,8 @@ import { RegulatoryDocumentUpload } from '@/features/regulatory-documents/compon
 
 const RegulatoryDocumentsRoute = () => (
   <ContentLayout
-    title="Documentos regulatorios"
-    description="Subí un PDF para que entre al pipeline de ingesta."
+    title="Regulatory documents"
+    description="Upload a PDF to send it into the ingestion pipeline."
   >
     <RegulatoryDocumentUpload />
   </ContentLayout>

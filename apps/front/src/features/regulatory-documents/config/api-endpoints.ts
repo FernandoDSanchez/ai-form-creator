@@ -1,9 +1,9 @@
-/** Endpoints de la feature. Ningún literal de URL fuera de este archivo. */
+/** Feature endpoints. No URL literal outside this file. */
 export const regulatoryDocumentEndpoints = {
   regulatoryDocuments: '/regulatory-documents',
 } as const;
 
-/** Claves de react-query de la feature. */
+/** react-query keys of the feature. */
 export const regulatoryDocumentQueryKeys = {
   all: ['regulatory-documents'] as const,
   lists: () => [...regulatoryDocumentQueryKeys.all, 'list'] as const,

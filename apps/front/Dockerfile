@@ -1,24 +1,24 @@
 # syntax=docker/dockerfile:1
 
-# OJO: el contexto de build es la RAÍZ del monorepo, no `apps/front`.
+# HEADS UP: the build context is the ROOT of the monorepo, not `apps/front`.
 #
 #   docker build -t ai-form-creator/front:dev -f apps/front/Dockerfile . \
 #     --build-arg VITE_APP_API_URL=...
 #
-# El front depende de `packages/contracts` por `file:`, y eso queda fuera de
-# cualquier contexto más angosto. El layout de `/repo` replica el del repo a
-# propósito: npm enlaza el paquete con un symlink relativo
+# The front depends on `packages/contracts` through `file:`, and that falls
+# outside any narrower context. The `/repo` layout mirrors the repo's on
+# purpose: npm links the package with a relative symlink
 # (`node_modules/@ai-form-creator/contracts` → `../../../../packages/contracts`)
-# que sólo resuelve si las rutas coinciden.
+# that only resolves if the paths match.
 #
-# Qué entra al contexto lo decide `apps/front/Dockerfile.dockerignore`.
+# What enters the context is decided by `apps/front/Dockerfile.dockerignore`.
 
-# --- contratos compartidos ---
+# --- shared contracts ---
 FROM node:24-alpine AS contracts
 WORKDIR /repo/packages/contracts
 
 COPY packages/contracts/package*.json ./
-# `--ignore-scripts` por consistencia con el resto: el build va explícito abajo.
+# `--ignore-scripts` for consistency with the rest: the build is explicit below.
 RUN npm ci --ignore-scripts
 
 COPY packages/contracts/tsconfig*.json ./
@@ -26,36 +26,36 @@ COPY packages/contracts/scripts ./scripts
 COPY packages/contracts/src ./src
 RUN npm run build
 
-# Poda las devDependencies y deja sólo las de runtime (TypeBox). Ese
-# `node_modules` tiene que viajar: npm resuelve el symlink a su ruta real, así
-# que los imports que salen de `packages/contracts/dist/**` se buscan desde
-# `packages/contracts/`, no desde el `node_modules` de la app.
+# Prunes the devDependencies and leaves only the runtime ones (TypeBox). That
+# `node_modules` has to travel: npm resolves the symlink to its real path, so
+# the imports coming out of `packages/contracts/dist/**` are looked up from
+# `packages/contracts/`, not from the app's `node_modules`.
 RUN npm prune --omit=dev
 
 # --- build ---
 FROM node:24-alpine AS build
 WORKDIR /repo/apps/front
 
-# El compilado, el manifiesto y las deps de runtime: las fuentes no hacen falta.
+# The build output, the manifest and the runtime deps: the sources are not needed.
 COPY --from=contracts /repo/packages/contracts/package.json /repo/packages/contracts/
 COPY --from=contracts /repo/packages/contracts/dist /repo/packages/contracts/dist
 COPY --from=contracts /repo/packages/contracts/node_modules /repo/packages/contracts/node_modules
 
 COPY apps/front/package*.json ./
-# El script `prepare` del front es `cd ../.. && husky`: apunta a la raíz del
-# monorepo, y husky no está en la imagen. --ignore-scripts lo saltea; a
-# diferencia del back (que necesita `prisma generate`), acá no hay postinstall
-# que haga falta — mockServiceWorker.js está versionado en public/.
+# The front's `prepare` script is `cd ../.. && husky`: it points at the root of
+# the monorepo, and husky is not in the image. --ignore-scripts skips it; unlike
+# the back (which needs `prisma generate`), here there is no postinstall that is
+# needed — mockServiceWorker.js is versioned in public/.
 RUN npm ci --ignore-scripts
 
 COPY apps/front/tsconfig*.json apps/front/vite.config.ts apps/front/index.html ./
 COPY apps/front/public ./public
 COPY apps/front/src ./src
 
-# Vite hornea las VITE_APP_* dentro del bundle: son build-time, no runtime.
-# Por eso van como ARG y no como env del Deployment — cambiar de entorno es
-# reconstruir la imagen, no reiniciar el pod. Los nombres los valida
-# src/config/env.ts con zod: API_URL es obligatoria.
+# Vite bakes the VITE_APP_* into the bundle: they are build-time, not runtime.
+# That is why they go as ARG and not as Deployment env — switching environments
+# means rebuilding the image, not restarting the pod. The names are validated by
+# src/config/env.ts with zod: API_URL is mandatory.
 ARG VITE_APP_API_URL
 ARG VITE_APP_ENABLE_API_MOCKING=false
 ARG VITE_APP_URL
@@ -68,15 +68,15 @@ RUN npm run build
 # --- runtime ---
 FROM nginxinc/nginx-unprivileged:1.29-alpine AS runtime
 
-# El Deployment corre con runAsUser 1000, readOnlyRootFilesystem: true y
-# emptyDirs en /tmp y /var/cache/nginx. nginx.conf manda el pid y los temp
-# paths a esas dos rutas; ver los comentarios ahí.
+# The Deployment runs with runAsUser 1000, readOnlyRootFilesystem: true and
+# emptyDirs on /tmp and /var/cache/nginx. nginx.conf sends the pid and the temp
+# paths to those two locations; see the comments there.
 COPY apps/front/nginx.conf /etc/nginx/nginx.conf
 COPY --from=build /repo/apps/front/dist /usr/share/nginx/html
 
 EXPOSE 8080
 
-# Se saltea docker-entrypoint.sh a propósito: sus scripts de
-# /docker-entrypoint.d escriben en /etc/nginx (por ejemplo el de ipv6), y ahí
-# el rootfs es de sólo lectura. Arrancamos nginx directo.
+# docker-entrypoint.sh is deliberately skipped: its /docker-entrypoint.d
+# scripts write into /etc/nginx (the ipv6 one, for instance), and there the
+# rootfs is read-only. We start nginx directly.
 ENTRYPOINT ["nginx", "-g", "daemon off;"]

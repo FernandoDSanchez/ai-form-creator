@@ -22,16 +22,16 @@ export const AppLayout = ({ children }: AppLayoutProps) => (
         </Link>
         <nav className="gap-md ml-auto flex items-center">
           <Link to={paths.forms.root.getHref()} className="text-sm">
-            Formularios
+            Forms
           </Link>
           <Link
             to={paths.regulatoryDocuments.root.getHref()}
             className="text-sm"
           >
-            Documentos
+            Documents
           </Link>
           <Link to={paths.formGenerations.root.getHref()} className="text-sm">
-            Generar
+            Generate
           </Link>
         </nav>
       </div>

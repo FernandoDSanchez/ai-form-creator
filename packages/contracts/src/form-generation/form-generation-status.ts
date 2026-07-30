@@ -1,38 +1,39 @@
 import { Type, type Static } from '@sinclair/typebox';
 
 /**
- * Estados del pipeline de generación de un formulario.
+ * Statuses of a form generation pipeline.
  *
- * El orden de la declaración es el orden real del recorrido, y cada estado
- * responde a «¿qué está esperando ahora mismo esta solicitud?». Por eso hay
- * más de los cuatro del boceto original: un estado que agrupa dos esperas
- * distintas no le sirve ni al que mira la UI ni al que mira Temporal.
+ * Declaration order is the real order of the journey, and every status answers
+ * "what is this request waiting for right now?". That is why there are more
+ * than the four of the original sketch: a status that lumps together two
+ * different waits helps neither whoever is looking at the UI nor whoever is
+ * looking at Temporal.
  *
- * Objeto `as const` en vez de `enum` (`CLAUDE.md` §2): ni el worker depende del
- * enum que genera Prisma, ni el front repite los literales para mapear estado →
- * variante visual.
+ * An `as const` object instead of an `enum` (`CLAUDE.md` §2): the worker does
+ * not depend on the enum Prisma generates, and the front does not repeat the
+ * literals to map status → visual variant.
  */
 export const formGenerationStatuses = {
-  /** La escribió el back al aceptar el POST. Temporal todavía no la tomó. */
+  /** Written by the back when it accepted the POST. Temporal has not picked it up yet. */
   pending: 'PENDING',
-  /** Buscando contexto en RAGFlow para los documentos elegidos. */
+  /** Looking for context in RAGFlow for the chosen documents. */
   retrieving: 'RETRIEVING',
-  /** El LLM está redactando el formulario. */
+  /** The LLM is drafting the form. */
   generating: 'GENERATING',
-  /** Contrastando lo que devolvió el LLM contra el schema del paquete. */
+  /** Checking what the LLM returned against the package schema. */
   validating: 'VALIDATING',
-  /** No validó: se le devuelven los errores al LLM y se reintenta. */
+  /** It did not validate: the errors go back to the LLM and it is retried. */
   repairing: 'REPAIRING',
   /**
-   * Hay un formulario válido y el workflow está detenido esperando a una
-   * persona. **Toda** generación pasa por acá: la IA nunca publica sola.
+   * There is a valid form and the workflow is halted, waiting for a person.
+   * **Every** generation goes through here: the AI never publishes on its own.
    */
   awaitingReview: 'AWAITING_REVIEW',
-  /** Una persona lo aprobó. Terminal. */
+  /** A person approved it. Terminal. */
   approved: 'APPROVED',
-  /** Una persona lo rechazó. Terminal. */
+  /** A person rejected it. Terminal. */
   rejected: 'REJECTED',
-  /** Se agotaron los reintentos o algo se rompió sin arreglo. Terminal. */
+  /** Retries ran out or something broke beyond repair. Terminal. */
   failed: 'FAILED',
 } as const;
 
@@ -40,19 +41,19 @@ export const formGenerationStatusSchema = /* @__PURE__ */ Type.Enum(
   formGenerationStatuses,
   {
     $id: 'FormGenerationStatus',
-    description: 'Estado del pipeline de generación del formulario.',
+    description: 'Status of the form generation pipeline.',
   },
 );
 
 export type FormGenerationStatus = Static<typeof formGenerationStatusSchema>;
 
 /**
- * Estados donde ya no queda nada por esperar.
+ * Statuses where there is nothing left to wait for.
  *
- * Vive acá y no en cada app porque las tres lo necesitan para lo mismo con
- * distintas palabras: el front deja de escuchar el WebSocket, el back deja de
- * reintentar señales y el worker termina el workflow. Si mañana se agrega un
- * estado terminal, se agrega en una sola lista.
+ * It lives here and not in each app because all three need it for the same
+ * thing under different words: the front stops listening to the WebSocket, the
+ * back stops retrying signals and the worker ends the workflow. If a new
+ * terminal status shows up tomorrow, it is added to a single list.
  */
 export const terminalFormGenerationStatuses = [
   formGenerationStatuses.approved,
@@ -67,7 +68,7 @@ export const isTerminalFormGenerationStatus = (
     status,
   );
 
-/** Decisión de la persona que revisa. No hay tercera opción a propósito. */
+/** The reviewer's decision. There is deliberately no third option. */
 export const formGenerationReviewDecisions = {
   approve: 'APPROVE',
   reject: 'REJECT',
@@ -77,7 +78,7 @@ export const formGenerationReviewDecisionSchema = /* @__PURE__ */ Type.Enum(
   formGenerationReviewDecisions,
   {
     $id: 'FormGenerationReviewDecision',
-    description: 'Veredicto humano sobre un formulario generado.',
+    description: 'Human verdict on a generated form.',
   },
 );
 

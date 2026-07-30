@@ -1,14 +1,14 @@
 /**
- * El pedido referencia documentos que no están en la base.
+ * The request references documents that are not in the database.
  *
- * Se chequea antes de arrancar el workflow y no dentro: un id inventado es un
- * error del cliente (400), no una falla del pipeline. Si se dejara pasar, el
- * modelo generaría el formulario con menos contexto del que el usuario cree que
- * le dio, y nadie se enteraría.
+ * It is checked before starting the workflow and not inside it: a made-up id is
+ * a client error (400), not a pipeline failure. If it were let through, the
+ * model would generate the form with less context than the user believes they
+ * gave it, and nobody would find out.
  */
 export class UnknownRegulatoryDocumentError extends Error {
   constructor(readonly missingIds: readonly string[]) {
-    super(`No existen los documentos regulatorios: ${missingIds.join(', ')}.`);
+    super(`These regulatory documents do not exist: ${missingIds.join(', ')}.`);
     this.name = 'UnknownRegulatoryDocumentError';
   }
 }

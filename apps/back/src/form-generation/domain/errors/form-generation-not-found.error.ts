@@ -1,13 +1,13 @@
 /**
- * Se pidió una solicitud que no existe.
+ * A request that does not exist was asked for.
  *
- * Error de dominio, no `NotFoundException`: el núcleo no sabe qué código HTTP
- * le toca. Esa traducción la hace
+ * A domain error, not a `NotFoundException`: the core does not know which HTTP
+ * code it deserves. That translation is done by
  * `infrastructure/http/domain-exception.filter.ts`.
  */
 export class FormGenerationNotFoundError extends Error {
   constructor(readonly formGenerationId: string) {
-    super(`No existe la solicitud de generación ${formGenerationId}.`);
+    super(`Generation request ${formGenerationId} does not exist.`);
     this.name = 'FormGenerationNotFoundError';
   }
 }

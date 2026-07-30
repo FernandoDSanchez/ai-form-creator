@@ -4,18 +4,18 @@ import type { RegulatoryDocument } from '../../../domain/regulatory-document';
 import { regulatoryDocumentStatuses } from '../../../domain/regulatory-document-status';
 
 /**
- * Vista HTTP de la entidad. Se declara aparte del dominio a propósito: el
- * contrato con el front puede cambiar sin arrastrar al núcleo, y una columna
- * nueva no se filtra sola a la respuesta.
+ * HTTP view of the entity. It is declared apart from the domain on purpose: the
+ * contract with the front can change without dragging the core along, and a new
+ * column does not leak into the response by itself.
  */
 export class RegulatoryDocumentResponse {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ description: 'Id del documento del lado de RAGFlow.' })
+  @ApiProperty({ description: 'Document id on the RAGFlow side.' })
   ragflowDocumentId!: string;
 
-  @ApiProperty({ description: 'Dataset de RAGFlow que lo contiene.' })
+  @ApiProperty({ description: 'RAGFlow dataset holding it.' })
   ragflowDatasetId!: string;
 
   @ApiProperty()
@@ -27,7 +27,7 @@ export class RegulatoryDocumentResponse {
   @ApiProperty({
     enum: Object.values(regulatoryDocumentStatuses),
     description:
-      'Siempre PENDING en la respuesta del alta: el procesamiento es asíncrono.',
+      'Always PENDING in the registration response: processing is asynchronous.',
   })
   status!: string;
 
@@ -42,8 +42,8 @@ export class RegulatoryDocumentResponse {
       fileName: document.fileName,
       sizeBytes: document.sizeBytes,
       status: document.status,
-      // Ya viene como string ISO desde el mapper de Prisma: la entidad es el
-      // contrato compartido con el front y no maneja `Date`.
+      // It already arrives as an ISO string from the Prisma mapper: the entity
+      // is the contract shared with the front and does not handle `Date`.
       createdAt: document.createdAt,
     };
   }

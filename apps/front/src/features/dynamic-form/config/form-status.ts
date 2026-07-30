@@ -4,27 +4,27 @@ import {
 } from '../types/form-template';
 
 /**
- * Variant Mapping: estado -> presentación.
- * Sin `if/else`, sin comparar contra strings: se indexa el mapa.
- * Al ser `Record<FormTemplateStatus, ...>`, TypeScript obliga a cubrir todos
- * los estados cuando se añade uno nuevo.
+ * Variant Mapping: status -> presentation.
+ * No `if/else`, no comparing against strings: the map is indexed.
+ * Being a `Record<FormTemplateStatus, ...>`, TypeScript forces covering every
+ * status when a new one is added.
  */
 export const formStatusVariants: Record<
   FormTemplateStatus,
   { label: string; className: string; isSubmittable: boolean }
 > = {
   [formTemplateStatuses.draft]: {
-    label: 'Borrador',
+    label: 'Draft',
     className: 'bg-warning-surface text-warning border-warning',
     isSubmittable: false,
   },
   [formTemplateStatuses.published]: {
-    label: 'Publicado',
+    label: 'Published',
     className: 'bg-success-surface text-success border-success',
     isSubmittable: true,
   },
   [formTemplateStatuses.archived]: {
-    label: 'Archivado',
+    label: 'Archived',
     className: 'bg-surface-sunken text-content-muted border-border',
     isSubmittable: false,
   },

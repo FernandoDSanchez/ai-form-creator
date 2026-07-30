@@ -10,54 +10,54 @@ import tseslint from 'typescript-eslint';
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 
 /**
- * La arquitectura del worker no es un gusto nuestro: se la impone Temporal.
+ * The worker architecture is not a taste of ours: Temporal imposes it.
  *
  *   config → worker.ts
  *   activities → domain
- *   workflows → domain          (NUNCA → activities, NUNCA → config)
- *   domain → nada
+ *   workflows → domain          (NEVER → activities, NEVER → config)
+ *   domain → nothing
  *
- * El código de un workflow no corre como código normal: corre en un sandbox
- * determinista, reejecutado de cero cada vez que el worker se reinicia o se
- * reemplaza. Ahí adentro no hay red, no hay disco, no hay `process.env`, y
- * cualquier cosa que dé un resultado distinto en la segunda corrida rompe la
- * ejecución. Un `import` equivocado no falla al compilar: falla en producción,
- * en una reejecución, con un `Nondeterminism error` a los tres días.
+ * Workflow code does not run like normal code: it runs in a deterministic
+ * sandbox, re-executed from scratch every time the worker restarts or is
+ * replaced. In there is no network, no disk, no `process.env`, and anything
+ * returning a different result on the second run breaks the execution. A wrong
+ * `import` does not fail at compile time: it fails in production, on a
+ * re-execution, with a `Nondeterminism error` three days later.
  *
- * Por eso las capas de acá se parecen tanto a las del back (`CLAUDE.md` §9): el
- * `domain/` es puro por la misma razón que allá, `activities/` es la
- * infraestructura —el único lugar con IO— y `workflows/` sólo orquesta. Que el
- * workflow no pueda importar `activities/` es lo que fuerza a que hable con
- * ellas por un puerto (`domain/ports/form-generation-activities.port.ts`), que
- * es exactamente lo que Temporal quiere: el workflow declara qué necesita, y el
- * `proxyActivities` lo resuelve por RPC.
+ * That is why the layers here look so much like the back's (`CLAUDE.md` §9):
+ * `domain/` is pure for the same reason as there, `activities/` is the
+ * infrastructure — the only place with IO — and `workflows/` only orchestrates.
+ * That the workflow cannot import `activities/` is what forces it to talk to
+ * them through a port (`domain/ports/form-generation-activities.port.ts`),
+ * which is exactly what Temporal wants: the workflow declares what it needs,
+ * and `proxyActivities` resolves it over RPC.
  */
 const workerZones = [
   {
     target: './src/domain',
     from: ['./src/activities', './src/workflows', './src/config'],
     message:
-      'El dominio es puro: sin IO, sin Temporal y sin variables de entorno. ' +
-      'Si necesitás algo de afuera, declaralo como puerto en `domain/ports/`.',
+      'The domain is pure: no IO, no Temporal and no environment variables. ' +
+      'If you need something from outside, declare it as a port in `domain/ports/`.',
   },
   {
     target: './src/workflows',
     from: ['./src/activities', './src/config'],
     message:
-      'Un workflow no puede tocar una actividad ni la configuración: corre en ' +
-      'un sandbox determinista, sin red ni `process.env`. Hablá con las ' +
-      'actividades por el puerto de `domain/ports/` y `proxyActivities`.',
+      'A workflow cannot touch an activity or the configuration: it runs in a ' +
+      'deterministic sandbox, with no network and no `process.env`. Talk to the ' +
+      'activities through the `domain/ports/` port and `proxyActivities`.',
   },
   {
     target: './src/activities',
     from: './src/workflows',
     message:
-      'Las actividades no conocen al workflow que las usa. La dependencia va ' +
-      'workflow → puerto ← actividad.',
+      'Activities do not know the workflow using them. The dependency goes ' +
+      'workflow → port ← activity.',
   },
 ];
 
-/** Todo lo que no puede existir dentro del sandbox de un workflow. */
+/** Everything that cannot exist inside a workflow sandbox. */
 const sandboxForbiddenPackages = {
   group: [
     'pg',
@@ -73,11 +73,11 @@ const sandboxForbiddenPackages = {
     '@temporalio/client',
   ],
   message:
-    'Prohibido dentro de un workflow: no hay IO ni módulos de Node en el ' +
-    'sandbox determinista. Movelo a `activities/`.',
+    'Forbidden inside a workflow: there is no IO and no Node modules in the ' +
+    'deterministic sandbox. Move it to `activities/`.',
 };
 
-/** Lo mismo, más Temporal: el dominio ni siquiera sabe que existe. */
+/** The same, plus Temporal: the domain does not even know it exists. */
 const domainForbiddenPackages = {
   group: [
     'pg',
@@ -91,8 +91,8 @@ const domainForbiddenPackages = {
     '@temporalio/*',
   ],
   message:
-    'El dominio no conoce ni el motor de orquestación ni el mundo exterior. ' +
-    'Movelo a `activities/` o declaralo como puerto.',
+    'The domain knows neither the orchestration engine nor the outside world. ' +
+    'Move it to `activities/` or declare it as a port.',
 };
 
 export default tseslint.config(
@@ -120,7 +120,7 @@ export default tseslint.config(
       },
     },
     rules: {
-      // --- arquitectura ---
+      // --- architecture ---
       'import-x/no-restricted-paths': ['error', { zones: workerZones }],
       'import-x/no-cycle': ['error', { maxDepth: Infinity }],
       'import-x/order': [
@@ -139,7 +139,7 @@ export default tseslint.config(
         },
       ],
 
-      // --- nombrado (CLAUDE.md §2) ---
+      // --- naming (CLAUDE.md §2) ---
       '@typescript-eslint/naming-convention': [
         'error',
         {
@@ -156,8 +156,8 @@ export default tseslint.config(
           format: ['camelCase'],
           leadingUnderscore: 'allow',
         },
-        // Los payloads externos (LiteLLM, RAGFlow) y las columnas de Postgres
-        // usan snake_case.
+        // External payloads (LiteLLM, RAGFlow) and Postgres columns use
+        // snake_case.
         { selector: 'objectLiteralProperty', format: null },
         { selector: 'typeProperty', format: null },
         { selector: 'typeLike', format: ['PascalCase'] },
@@ -166,7 +166,7 @@ export default tseslint.config(
         { selector: 'classMethod', format: ['camelCase'] },
       ],
 
-      // --- calidad ---
+      // --- quality ---
       '@typescript-eslint/no-unused-vars': [
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
@@ -177,8 +177,8 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-floating-promises': 'error',
       '@typescript-eslint/no-explicit-any': 'error',
-      // El worker loguea con el logger de Temporal, que sí llega a los logs del
-      // pod con contexto de workflow. `console` los deja huérfanos.
+      // The worker logs with Temporal's logger, which does reach the pod logs
+      // with workflow context. `console` leaves them orphaned.
       'no-console': 'error',
     },
   },
@@ -203,7 +203,7 @@ export default tseslint.config(
     },
   },
 
-  // Los tests pueden ser laxos con los tipos: los dobles mienten a propósito.
+  // Tests may be lax with types: the doubles lie on purpose.
   {
     files: ['**/__tests__/**/*.ts', '**/*.spec.ts'],
     rules: {
@@ -217,8 +217,9 @@ export default tseslint.config(
     },
   },
 
-  // El bootstrap y la config son la raíz de composición: leen `process.env` y
-  // arman el mundo. Son la excepción, igual que `main.ts` en el back.
+  // The bootstrap and the config are the composition root: they read
+  // `process.env` and build the world. They are the exception, just like
+  // `main.ts` in the back.
   {
     files: ['src/worker.ts', 'src/config/**/*.ts', 'eslint.config.mjs'],
     rules: {

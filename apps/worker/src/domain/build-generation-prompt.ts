@@ -10,23 +10,23 @@ import {
 import { generatedFormLimits } from '@ai-form-creator/contracts/form-generation/generated-form';
 
 /**
- * Arma los dos mensajes que se le mandan al modelo.
+ * Builds the two messages sent to the model.
  *
- * Función pura: recibe datos, devuelve strings. Todo lo verificable de este
- * archivo se puede testear sin red, y de hecho se testea.
+ * A pure function: it receives data, it returns strings. Everything verifiable
+ * in this file can be tested without a network, and in fact is.
  *
- * El vocabulario no se escribe a mano en el texto: se genera desde
- * `formFieldCatalog`. Un campo nuevo aparece en el prompt el mismo día que se
- * agrega al contrato, y no el día que alguien se acuerda de actualizar el
- * párrafo.
+ * The vocabulary is not written by hand in the text: it is generated from
+ * `formFieldCatalog`. A new field shows up in the prompt the same day it is
+ * added to the contract, and not the day somebody remembers to update the
+ * paragraph.
  */
 
 const groupTitles: Record<FormFieldGroup, string> = {
-  [formFieldGroups.compliance]: 'Cumplimiento (transversal)',
-  [formFieldGroups.customs]: 'Aduana y comercio exterior',
+  [formFieldGroups.compliance]: 'Compliance (cross-cutting)',
+  [formFieldGroups.customs]: 'Customs and foreign trade',
 };
 
-/** El catálogo, como tabla legible: `nombre` — descripción (componente sugerido). */
+/** The catalog, as a readable table: `name` — description (suggested component). */
 const describeVocabulary = (): string =>
   Object.values(formFieldGroups)
     .map((group) => {
@@ -34,7 +34,7 @@ const describeVocabulary = (): string =>
         .filter(([, definition]) => definition.group === group)
         .map(
           ([name, definition]) =>
-            `- ${name}: ${definition.description} (sugerido: ${definition.component})`,
+            `- ${name}: ${definition.description} (suggested: ${definition.component})`,
         )
         .join('\n');
 
@@ -44,50 +44,50 @@ const describeVocabulary = (): string =>
 
 export const buildSystemPrompt = (): string =>
   [
-    'Sos un analista de cumplimiento normativo. Diseñás formularios que ' +
-      'recogen los datos que exige una norma.',
+    'You are a regulatory compliance analyst. You design forms that collect ' +
+      'the data a regulation requires.',
     '',
-    'Devolvés únicamente el objeto JSON que pide el esquema de respuesta. Sin ' +
-      'texto alrededor, sin markdown, sin explicaciones.',
+    'You return only the JSON object the response schema asks for. No text ' +
+      'around it, no markdown, no explanations.',
     '',
-    '## Vocabulario de campos',
+    '## Field vocabulary',
     '',
-    'El `name` de cada campo tiene que salir de esta lista cerrada. No podés ' +
-      'inventar nombres: un nombre fuera de la lista invalida la respuesta ' +
-      'entera. Si un dato que la norma pide no tiene un campo que le ' +
-      'corresponda, omitilo — es preferible un formulario corto y correcto a ' +
-      'uno completo que no se puede procesar.',
+    'The `name` of every field has to come from this closed list. You cannot ' +
+      'invent names: a name outside the list invalidates the whole answer. If ' +
+      'a piece of data the regulation asks for has no field matching it, omit ' +
+      'it — a short and correct form is preferable to a complete one that ' +
+      'cannot be processed.',
     '',
     describeVocabulary(),
     '',
-    '## Componentes',
+    '## Components',
     '',
-    `Valores admitidos para \`component\`: ${Object.values(formFieldComponents).join(', ')}.`,
-    `Sólo ${optionBackedFormFieldComponents.join(' y ')} llevan \`options\`, y ` +
-      'les son obligatorias. El resto tiene que traer `options` como arreglo ' +
-      'vacío.',
+    `Accepted values for \`component\`: ${Object.values(formFieldComponents).join(', ')}.`,
+    `Only ${optionBackedFormFieldComponents.join(' and ')} carry \`options\`, ` +
+      'and for them they are mandatory. The rest have to bring `options` as an ' +
+      'empty array.',
     '',
-    '## Reglas',
+    '## Rules',
     '',
-    `- Entre ${generatedFormLimits.minFields} y ${generatedFormLimits.maxFields} campos.`,
-    '- No repitas un `name`: cada campo aparece una sola vez.',
-    '- `title` va en español, en el registro formal de un trámite oficial.',
-    '- `isRequired` en `true` sólo si la norma exige el dato para dar el ' +
-      'trámite por válido.',
-    '- `helpText` y `placeholder` son cadenas vacías cuando no aportan nada. ' +
-      'No los rellenes por rellenar.',
-    `- \`options\`: hasta ${generatedFormLimits.maxOptions}, con \`value\` en ` +
-      'minúsculas sin espacios y `label` en español.',
-    '- Ordená los campos como se llenarían: identificación primero, ' +
-      'declaraciones y firmas al final.',
+    `- Between ${generatedFormLimits.minFields} and ${generatedFormLimits.maxFields} fields.`,
+    '- Do not repeat a `name`: every field appears exactly once.',
+    '- `title` goes in English, in the formal register of an official filing.',
+    '- `isRequired` is `true` only if the regulation requires the data for the ' +
+      'filing to be valid.',
+    '- `helpText` and `placeholder` are empty strings when they contribute ' +
+      'nothing. Do not fill them in for the sake of it.',
+    `- \`options\`: up to ${generatedFormLimits.maxOptions}, with \`value\` in ` +
+      'lower case without spaces and `label` in English.',
+    '- Order the fields the way they would be filled in: identification first, ' +
+      'declarations and signatures last.',
   ].join('\n');
 
 export type UserPromptInput = {
-  /** El pedido, tal cual lo escribió la persona. */
+  /** The request, exactly as the person wrote it. */
   prompt: string;
-  /** Fragmentos del RAG. Vacío si no se eligieron documentos. */
+  /** RAG chunks. Empty if no documents were chosen. */
   regulatoryContext: string;
-  /** Errores del intento anterior. Vacío en el primero. */
+  /** Errors from the previous attempt. Empty on the first one. */
   problems: string[];
 };
 
@@ -96,30 +96,30 @@ export const buildUserPrompt = ({
   regulatoryContext,
   problems,
 }: UserPromptInput): string => {
-  const sections = ['## Pedido', '', prompt];
+  const sections = ['## Request', '', prompt];
 
   if (regulatoryContext.trim().length > 0) {
     sections.push(
       '',
-      '## Fuentes normativas',
+      '## Regulatory sources',
       '',
-      'Fragmentos de los documentos regulatorios que eligió el usuario. ' +
-        'Apoyate en ellos para decidir qué datos pedir y cuáles son ' +
-        'obligatorios. Si se contradicen con el pedido, mandan los fragmentos.',
+      'Chunks of the regulatory documents the user chose. Lean on them to ' +
+        'decide which data to ask for and which items are mandatory. If they ' +
+        'contradict the request, the chunks win.',
       '',
       regulatoryContext,
     );
   }
 
   if (problems.length > 0) {
-    // Va último a propósito: es lo que el modelo tiene más fresco al empezar a
-    // escribir, y es lo único que diferencia este intento del anterior.
+    // It goes last on purpose: it is what the model has freshest when it starts
+    // writing, and it is the only thing separating this attempt from the last.
     sections.push(
       '',
-      '## Corrección',
+      '## Correction',
       '',
-      'Tu respuesta anterior fue rechazada por estos motivos. Corregilos y ' +
-        'devolvé el formulario completo de nuevo:',
+      'Your previous answer was rejected for these reasons. Fix them and ' +
+        'return the complete form again:',
       '',
       ...problems.map((problem) => `- ${problem}`),
     );

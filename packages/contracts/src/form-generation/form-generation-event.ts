@@ -1,53 +1,54 @@
 /**
- * El tercer cable: el WebSocket por el que el back le avisa al front que una
- * generación cambió de estado.
+ * The third wire: the WebSocket the back uses to tell the front that a
+ * generation changed status.
  *
- * Mismo razonamiento que `form-generation-workflow.ts`: un nombre de evento que
- * no coincida entre el `emit` del gateway y el `on` del hook no rompe nada, sólo
- * deja al front esperando. Los nombres se declaran una vez.
+ * Same reasoning as `form-generation-workflow.ts`: an event name that does not
+ * match between the gateway's `emit` and the hook's `on` breaks nothing, it
+ * just leaves the front waiting. The names are declared once.
  *
- * El canal es una sala de socket.io por solicitud, y no un broadcast general,
- * porque el payload trae el formulario entero: quien mira la generación A no
- * tiene por qué recibir la B.
+ * The channel is a socket.io room per request, not a general broadcast, because
+ * the payload carries the whole form: whoever is watching generation A has no
+ * business receiving B.
  */
 
-/** Namespace de socket.io: separa este canal de cualquier otro que se agregue. */
+/** socket.io namespace: keeps this channel apart from any other one added later. */
 export const formGenerationNamespace = '/form-generations';
 
 /**
- * Ruta del handshake de socket.io, **relativa a la raíz de la API**.
+ * Path of the socket.io handshake, **relative to the API root**.
  *
- * Es el valor por omisión de socket.io, pero acá no se puede dejar por omisión:
- * los gateways de Nest no pasan por `setGlobalPrefix`, así que el servidor
- * atendería en `/socket.io` —la raíz del dominio— mientras el Ingress manda
- * todo lo que no empieza con `/api` al nginx del front. El handshake se comería
- * un 404 del front y el socket no conectaría nunca; la pantalla seguiría
- * andando por el polling de respaldo, que es justo lo que hace que el problema
- * pase desapercibido.
+ * It is socket.io's default value, but it cannot be left to default here: Nest
+ * gateways do not go through `setGlobalPrefix`, so the server would listen on
+ * `/socket.io` — the domain root — while the Ingress sends everything not
+ * starting with `/api` to the front's nginx. The handshake would eat a 404 from
+ * the front and the socket would never connect; the screen would keep working
+ * through the fallback polling, which is exactly what makes the problem go
+ * unnoticed.
  *
- * Cada punta lo antepone con lo que le corresponde: el back con su
- * `globalPrefix`, el front con el path de su `API_URL`.
+ * Each end prefixes it with what corresponds to it: the back with its
+ * `globalPrefix`, the front with the path of its `API_URL`.
  */
 export const formGenerationStreamPath = '/socket.io';
 
 export const formGenerationEvents = {
-  /** front → back: «quiero enterarme de esta solicitud». Payload: el id. */
+  /** front → back: "I want to hear about this request". Payload: the id. */
   watch: 'watch',
-  /** back → front: la solicitud cambió. Payload: la entidad entera. */
+  /** back → front: the request changed. Payload: the whole entity. */
   changed: 'changed',
 } as const;
 
-/** Sala de socket.io de una solicitud. Una por id, sin cruces. */
+/** socket.io room of a request. One per id, no crossing over. */
 export const formGenerationRoom = (formGenerationId: string): string =>
   `form-generation:${formGenerationId}`;
 
 /**
- * Canal de `LISTEN`/`NOTIFY` de Postgres que dispara todo esto.
+ * The Postgres `LISTEN`/`NOTIFY` channel that sets all of this off.
  *
- * Lo escribe el trigger de la migración `..._form_generation` y lo escucha el
- * adaptador `postgres-form-generation-change-feed.ts`. Que el nombre viva acá y
- * no en el back es discutible —el front no lo usa—, pero es el mismo literal
- * que aparece en un `.sql` que ESLint no mira, y prefiero tenerlo donde se lo
- * ve al lado del resto de la cadena.
+ * It is written by the trigger of the `..._form_generation` migration and
+ * listened to by the `postgres-form-generation-change-feed.ts` adapter. Whether
+ * the name belongs here rather than in the back is debatable — the front does
+ * not use it — but it is the same literal appearing in a `.sql` file ESLint
+ * never looks at, and I would rather have it where it can be seen next to the
+ * rest of the chain.
  */
 export const formGenerationChangeChannel = 'form_generation_changed';

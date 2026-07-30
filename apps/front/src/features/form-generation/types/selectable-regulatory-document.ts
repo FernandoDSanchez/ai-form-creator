@@ -1,19 +1,19 @@
 import type { RegulatoryDocument } from '@ai-form-creator/contracts/regulatory-documents/regulatory-document';
 
 /**
- * Lo que esta feature necesita saber de un documento regulatorio para poder
- * ofrecerlo en el selector: cómo se llama y si ya está indexado.
+ * What this feature needs to know about a regulatory document in order to offer
+ * it in the picker: what it is called and whether it is already indexed.
  *
- * Se declara acá, derivado del contrato, en vez de importar el tipo desde
- * `features/regulatory-documents/`. Eso último lo prohíbe ESLint (§1), y la
- * prohibición está justamente para forzar esta pregunta: ¿qué le pide una
- * feature a la otra? La respuesta son tres campos, y escribirla como un `Pick`
- * la deja anotada — además de que si al contrato le cambia un campo, esto se
- * entera.
+ * It is declared here, derived from the contract, instead of importing the type
+ * from `features/regulatory-documents/`. ESLint forbids the latter (§1), and
+ * the ban is there precisely to force this question: what does one feature ask
+ * of the other? The answer is three fields, and writing it as a `Pick` puts it
+ * on the record — plus, if a contract field changes, this finds out.
  *
- * Es el mismo recurso que usa el back con `RegulatoryDocumentCatalog`: cuando
- * dos módulos no se pueden mirar, el que necesita declara la proyección mínima
- * y el que compone se la pasa. Acá el que compone es `src/app/routes/`.
+ * It is the same device the back uses with `RegulatoryDocumentCatalog`: when
+ * two modules cannot look at each other, the one that needs something declares
+ * the minimal projection and the one that composes passes it along. Here the
+ * one composing is `src/app/routes/`.
  */
 export type SelectableRegulatoryDocument = Pick<
   RegulatoryDocument,

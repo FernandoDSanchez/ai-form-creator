@@ -14,12 +14,12 @@ spec:
     spec:
       containers:
         - name: front
-          # nginx-unprivileged sirviendo el dist/ de Vite en 8080. Las URLs de
-          # la API van horneadas en el bundle (build-time, no runtime): para
-          # apuntar a otro entorno hay que reconstruir, no cambiar un env acá.
-          # Ver apps/front/Dockerfile.
+          # nginx-unprivileged serving Vite's dist/ on 8080. The API URLs are
+          # baked into the bundle (build-time, not runtime): pointing at another
+          # environment means rebuilding, not changing an env here. See
+          # apps/front/Dockerfile.
           image: ai-form-creator/front
-          # Como el back: imagen importada a mano al containerd de k3s.
+          # Like the back: image imported by hand into the k3s containerd.
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -50,7 +50,7 @@ spec:
             runAsUser: 1000
             seccompProfile: { type: RuntimeDefault }
           volumeMounts:
-            # readOnlyRootFilesystem: nginx necesita estos dos escribibles
+            # readOnlyRootFilesystem: nginx needs these two writable
             - name: tmp
               mountPath: /tmp
             - name: nginx-cache

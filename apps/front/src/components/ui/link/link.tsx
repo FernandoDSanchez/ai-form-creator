@@ -8,7 +8,7 @@ import { cn } from '@/utils/cn';
 export type LinkProps = RouterLinkProps;
 
 /**
- * Wrapper de `react-router`. `to` debe venir siempre de `paths.*.getHref()`.
+ * `react-router` wrapper. `to` must always come from `paths.*.getHref()`.
  */
 export const Link = ({ className, children, ...props }: LinkProps) => (
   <RouterLink

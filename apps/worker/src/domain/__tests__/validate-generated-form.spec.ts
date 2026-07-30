@@ -11,7 +11,7 @@ const aField = (
   overrides: Partial<GeneratedFormField> = {},
 ): GeneratedFormField => ({
   name: formFieldNames.entityLegalName,
-  title: 'Razón social',
+  title: 'Legal name',
   component: formFieldComponents.text,
   isRequired: true,
   helpText: '',
@@ -21,8 +21,8 @@ const aField = (
 });
 
 const aForm = (overrides: Partial<GeneratedForm> = {}): GeneratedForm => ({
-  title: 'Declaración de importación',
-  description: 'Datos exigidos por la resolución.',
+  title: 'Import declaration',
+  description: 'Data required by the regulation.',
   fields: [aField()],
   ...overrides,
 });
@@ -30,24 +30,24 @@ const aForm = (overrides: Partial<GeneratedForm> = {}): GeneratedForm => ({
 const validate = (form: unknown) => validateGeneratedForm(JSON.stringify(form));
 
 describe('validateGeneratedForm', () => {
-  it('acepta un formulario que cumple el schema y las reglas cruzadas', () => {
+  it('accepts a form meeting the schema and the cross-cutting rules', () => {
     const result = validate(aForm());
 
     expect(result).toEqual({ isValid: true, draft: aForm() });
   });
 
-  it('rechaza lo que no es JSON y lo explica en el idioma del prompt', () => {
-    const result = validateGeneratedForm('Claro, acá va tu formulario:');
+  it('rejects what is not JSON and explains it in the prompt language', () => {
+    const result = validateGeneratedForm('Sure, here is your form:');
 
     expect(result.isValid).toBe(false);
     expect(result.isValid === false && result.problems[0]).toContain(
-      'no es JSON válido',
+      'not valid JSON',
     );
   });
 
-  it('tolera la respuesta envuelta en un bloque de código', () => {
-    // Los modelos siguen haciéndolo aunque se les pida JSON pelado, y gastar
-    // uno de los tres intentos en eso sería tirarlo.
+  it('tolerates an answer wrapped in a code block', () => {
+    // Models still do it even when asked for bare JSON, and spending one of the
+    // three attempts on that would be throwing it away.
     const result = validateGeneratedForm(
       `\`\`\`json\n${JSON.stringify(aForm())}\n\`\`\``,
     );
@@ -55,10 +55,10 @@ describe('validateGeneratedForm', () => {
     expect(result.isValid).toBe(true);
   });
 
-  it('rechaza un `name` que no está en el vocabulario', () => {
+  it('rejects a `name` that is not in the vocabulary', () => {
     const result = validate(
       aForm({
-        fields: [{ ...aField(), name: 'razonSocial' as never }],
+        fields: [{ ...aField(), name: 'companyName' as never }],
       }),
     );
 
@@ -68,19 +68,19 @@ describe('validateGeneratedForm', () => {
     );
   });
 
-  it('rechaza propiedades que el schema no declara', () => {
+  it('rejects properties the schema does not declare', () => {
     const result = validate(
       aForm({
-        fields: [{ ...aField(), sarasa: true } as GeneratedFormField],
+        fields: [{ ...aField(), whatever: true } as GeneratedFormField],
       }),
     );
 
     expect(result.isValid).toBe(false);
   });
 
-  it('rechaza un desplegable sin opciones, que el schema deja pasar', () => {
-    // Es exactamente el caso que motiva el tercer filtro: cumple JSON Schema y
-    // renderizaría un select vacío.
+  it('rejects a dropdown with no options, which the schema lets through', () => {
+    // This is exactly the case motivating the third filter: it meets JSON
+    // Schema and would render an empty select.
     const result = validate(
       aForm({
         fields: [
@@ -95,17 +95,17 @@ describe('validateGeneratedForm', () => {
 
     expect(result.isValid).toBe(false);
     expect(result.isValid === false && result.problems.join(' ')).toContain(
-      'necesita al menos una opción',
+      'needs at least one option',
     );
   });
 
-  it('rechaza opciones en un componente que no las admite', () => {
+  it('rejects options on a component that does not accept them', () => {
     const result = validate(
       aForm({
         fields: [
           aField({
             component: formFieldComponents.text,
-            options: [{ label: 'Sí', value: 'si' }],
+            options: [{ label: 'Yes', value: 'yes' }],
           }),
         ],
       }),
@@ -113,20 +113,20 @@ describe('validateGeneratedForm', () => {
 
     expect(result.isValid).toBe(false);
     expect(result.isValid === false && result.problems.join(' ')).toContain(
-      'no admite',
+      'does not accept',
     );
   });
 
-  it('rechaza un `name` repetido', () => {
+  it('rejects a repeated `name`', () => {
     const result = validate(aForm({ fields: [aField(), aField()] }));
 
     expect(result.isValid).toBe(false);
     expect(result.isValid === false && result.problems.join(' ')).toContain(
-      'más de una vez',
+      'more than once',
     );
   });
 
-  it('rechaza opciones con el mismo value', () => {
+  it('rejects options with the same value', () => {
     const result = validate(
       aForm({
         fields: [
@@ -134,8 +134,8 @@ describe('validateGeneratedForm', () => {
             name: formFieldNames.riskLevel,
             component: formFieldComponents.radioGroup,
             options: [
-              { label: 'Bajo', value: 'bajo' },
-              { label: 'Reducido', value: 'bajo' },
+              { label: 'Low', value: 'low' },
+              { label: 'Reduced', value: 'low' },
             ],
           }),
         ],
@@ -144,11 +144,11 @@ describe('validateGeneratedForm', () => {
 
     expect(result.isValid).toBe(false);
     expect(result.isValid === false && result.problems.join(' ')).toContain(
-      'mismo value',
+      'same value',
     );
   });
 
-  it('rechaza un formulario sin campos', () => {
+  it('rejects a form with no fields', () => {
     const result = validate(aForm({ fields: [] }));
 
     expect(result.isValid).toBe(false);

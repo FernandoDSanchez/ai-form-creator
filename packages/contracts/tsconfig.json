@@ -16,9 +16,9 @@
     "declaration": true,
     "sourceMap": true,
 
-    // Explícito a propósito: sin esto `tsc` infiere la raíz común de los
-    // archivos de entrada y hoy colapsaría `src/regulatory-documents/` en la
-    // raíz de `dist/`, rompiendo los subpaths de `exports`.
+    // Explicit on purpose: without this `tsc` infers the common root of the
+    // input files and would today collapse `src/regulatory-documents/` into the
+    // root of `dist/`, breaking the `exports` subpaths.
     "rootDir": "./src"
   },
   "include": ["src/**/*"],

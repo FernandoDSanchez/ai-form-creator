@@ -5,15 +5,17 @@ import { PrismaService } from '../../../shared/infrastructure/prisma/prisma.serv
 import type { RegulatoryDocumentCatalog } from '../../domain/ports/regulatory-document-catalog.port';
 
 /**
- * Adaptador de salida del catálogo de documentos.
+ * Outbound adapter of the document catalog.
  *
- * Lee la tabla del otro contexto acotado. Es una lectura de tres columnas y
- * nada más — ni escribe, ni conoce el estado del pipeline de ingesta, ni
- * importa una sola línea de `regulatory-documents/`. El acoplamiento queda
- * acotado a este archivo, que es exactamente lo que el puerto viene a comprar.
+ * It reads the other bounded context's table. It is a three-column read and
+ * nothing else — it does not write, it does not know the status of the
+ * ingestion pipeline, and it imports not a single line from
+ * `regulatory-documents/`. The coupling stays contained in this file, which is
+ * exactly what the port is buying.
  *
- * `select` explícito y no la fila entera: si mañana el otro contexto le agrega
- * una columna, no se filtra sola hasta el payload del workflow.
+ * An explicit `select` and not the whole row: if tomorrow the other context
+ * adds a column, it does not leak by itself all the way to the workflow
+ * payload.
  */
 @Injectable()
 export class PrismaRegulatoryDocumentCatalog implements RegulatoryDocumentCatalog {

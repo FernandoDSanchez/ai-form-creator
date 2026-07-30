@@ -12,18 +12,18 @@ import type { FormilyFormSchema } from '@ai-form-creator/contracts/form-generati
 import type { GeneratedForm } from '@ai-form-creator/contracts/form-generation/generated-form';
 
 /**
- * Simulación del pipeline entero, en memoria.
+ * Simulation of the whole pipeline, in memory.
  *
- * Con la API mockeada no hay Temporal ni WebSocket, así que el avance se
- * simula: cada lectura del detalle mueve la solicitud un paso. El front hace
- * polling mientras el estado no sea terminal, con lo cual la pantalla recorre
- * el pipeline igual que contra el back real — sólo que al ritmo del refetch.
+ * With the API mocked there is no Temporal and no WebSocket, so progress is
+ * simulated: every read of the detail moves the request one step. The front
+ * polls while the status is not terminal, which means the screen walks the
+ * pipeline just like against the real back — only at the pace of the refetch.
  *
- * Sirve para dos cosas: desarrollar la pantalla sin el cluster levantado, y
- * dejar el recorrido documentado en código.
+ * It serves two purposes: developing the screen without the cluster up, and
+ * leaving the journey documented in code.
  */
 
-/** El recorrido feliz, en orden. El último es donde se detiene a esperar. */
+/** The happy path, in order. The last one is where it halts to wait. */
 const statusSequence = [
   formGenerationStatuses.pending,
   formGenerationStatuses.retrieving,
@@ -33,22 +33,21 @@ const statusSequence = [
 ] as const;
 
 const sampleDraft: GeneratedForm = {
-  title: 'Declaración de importación con control sanitario',
-  description:
-    'Datos exigidos para el ingreso de mercancía sujeta a control sanitario.',
+  title: 'Import declaration with sanitary control',
+  description: 'Data required for goods subject to sanitary control to enter.',
   fields: [
     {
       name: formFieldNames.importerTaxId,
-      title: 'Identificación del importador',
+      title: 'Importer identification',
       component: formFieldComponents.text,
       isRequired: true,
-      helpText: 'Tal como figura en el registro aduanero.',
+      helpText: 'Exactly as it appears in the customs register.',
       placeholder: 'J-12345678-9',
       options: [],
     },
     {
       name: formFieldNames.hsTariffCode,
-      title: 'Código arancelario',
+      title: 'Tariff code',
       component: formFieldComponents.text,
       isRequired: true,
       helpText: '',
@@ -57,20 +56,20 @@ const sampleDraft: GeneratedForm = {
     },
     {
       name: formFieldNames.customsRegime,
-      title: 'Régimen aduanero',
+      title: 'Customs regime',
       component: formFieldComponents.select,
       isRequired: true,
       helpText: '',
       placeholder: '',
       options: [
-        { label: 'Importación definitiva', value: 'definitiva' },
-        { label: 'Admisión temporal', value: 'temporal' },
-        { label: 'Tránsito aduanero', value: 'transito' },
+        { label: 'Definitive import', value: 'definitive' },
+        { label: 'Temporary admission', value: 'temporary' },
+        { label: 'Customs transit', value: 'transit' },
       ],
     },
     {
       name: formFieldNames.arrivalDate,
-      title: 'Fecha de arribo',
+      title: 'Arrival date',
       component: formFieldComponents.date,
       isRequired: true,
       helpText: '',
@@ -79,10 +78,10 @@ const sampleDraft: GeneratedForm = {
     },
     {
       name: formFieldNames.declarationAccepted,
-      title: 'Declaración jurada',
+      title: 'Sworn declaration',
       component: formFieldComponents.checkbox,
       isRequired: true,
-      helpText: 'Conozco las sanciones por declaración falsa.',
+      helpText: 'I am aware of the penalties for a false declaration.',
       placeholder: '',
       options: [],
     },
@@ -90,12 +89,12 @@ const sampleDraft: GeneratedForm = {
 };
 
 /**
- * El borrador ya compilado.
+ * The already compiled draft.
  *
- * Escrito a mano porque el compilador vive en `apps/worker` y el front no lo
- * tiene. Es la única parte del mock que puede desincronizarse de lo real; los
- * nombres salen igual de las constantes del contrato, así que lo que podría
- * divergir es la forma, no el vocabulario.
+ * Written by hand because the compiler lives in `apps/worker` and the front
+ * does not have it. It is the only part of the mock that can drift from the
+ * real thing; the names still come from the contract constants, so what could
+ * diverge is the shape, not the vocabulary.
  */
 const sampleFormilySchema: FormilyFormSchema = {
   type: 'object',
@@ -162,11 +161,11 @@ export const listFormGenerations = (): FormGeneration[] =>
   );
 
 /**
- * Devuelve la solicitud y, de paso, la hace avanzar un paso.
+ * Returns the request and, along the way, moves it one step forward.
  *
- * Que leer tenga efecto es una mentira deliberada del mock: lo que en el
- * sistema real mueve el estado es el worker, y acá no hay worker. El polling
- * del front hace las veces de reloj.
+ * That reading has an effect is a deliberate lie of the mock: in the real
+ * system what moves the status is the worker, and here there is no worker. The
+ * front's polling acts as the clock.
  */
 export const advanceFormGeneration = (
   formGenerationId: string,
@@ -181,7 +180,7 @@ export const advanceFormGeneration = (
     current.status as (typeof statusSequence)[number],
   );
 
-  // Fuera de la secuencia (terminal) o ya en el último paso: no se mueve más.
+  // Outside the sequence (terminal) or already on the last step: it stops moving.
   if (index < 0 || index === statusSequence.length - 1) {
     return current;
   }
@@ -228,7 +227,7 @@ export const reviewFormGeneration = (
   return reviewed;
 };
 
-/** Los tests arrancan de cero: el mapa vive entre archivos de test. */
+/** Tests start from scratch: the map lives across test files. */
 export const resetFormGenerations = (): void => {
   formGenerationsDb.clear();
 };

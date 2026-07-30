@@ -1,6 +1,6 @@
 /**
- * Constantes de la app. Mismo criterio que el front (`CLAUDE.md` §3): un
- * literal que aparece dos veces o que un no-autor no entendería, se nombra acá.
+ * App constants. Same criterion as the front (`CLAUDE.md` §3): a literal that
+ * shows up twice, or that a non-author would not understand, gets named here.
  */
 
 const BYTES_PER_KIB = 1024;
@@ -17,47 +17,47 @@ export const appConfig = {
 } as const;
 
 export const uploadConfig = {
-  /** Nombre del campo multipart que espera el endpoint. */
+  /** Name of the multipart field the endpoint expects. */
   fieldName: 'file',
-  /** Único tipo aceptado: los documentos regulatorios llegan en PDF. */
+  /** The only accepted type: regulatory documents arrive as PDFs. */
   allowedMimeType: 'application/pdf',
   /**
-   * El archivo viaja en memoria (nunca a disco): el Deployment corre con
-   * `readOnlyRootFilesystem: true` y sólo tiene un emptyDir en /tmp. 20 MiB es
-   * el techo para que N réplicas concurrentes no se coman el límite de 512Mi.
+   * The file travels in memory (never to disk): the Deployment runs with
+   * `readOnlyRootFilesystem: true` and only has an emptyDir on /tmp. 20 MiB is
+   * the ceiling so N concurrent replicas do not eat the 512Mi limit.
    */
   maxFileSizeBytes: MAX_UPLOAD_MIB * KIB_PER_MIB * BYTES_PER_KIB,
 } as const;
 
 export const httpConfig = {
   /**
-   * Subir a RAGFlow es una llamada síncrona que además escribe en su MinIO;
-   * con PDFs grandes tarda. Generoso a propósito, pero acotado: sin timeout el
-   * request del oficial queda colgado para siempre.
+   * Uploading to RAGFlow is a synchronous call that also writes to its MinIO;
+   * with large PDFs it takes a while. Generous on purpose, but bounded: without
+   * a timeout the officer's request hangs forever.
    */
   ragflowTimeoutMs: RAGFLOW_TIMEOUT_SECONDS * MILLISECONDS_PER_SECOND,
 } as const;
 
 export const temporalConfig = {
   /**
-   * Cuánto espera el cliente para conectarse al frontend de Temporal.
+   * How long the client waits to connect to the Temporal frontend.
    *
-   * Corto a propósito: si Temporal no está, el `POST` tiene que fallar rápido
-   * con un 502 y no dejar al oficial mirando un spinner. La solicitud ya quedó
-   * escrita en PENDING; lo que falla es el disparo.
+   * Short on purpose: if Temporal is down, the `POST` has to fail fast with a
+   * 502 and not leave the officer staring at a spinner. The request is already
+   * written as PENDING; what fails is the trigger.
    */
   connectTimeoutMs: TEMPORAL_CONNECT_TIMEOUT_SECONDS * MILLISECONDS_PER_SECOND,
 } as const;
 
 export const changeFeedConfig = {
   /**
-   * Espera antes de reintentar el `LISTEN` cuando se corta la conexión.
+   * Wait before retrying the `LISTEN` when the connection drops.
    *
-   * La conexión de escucha es un socket largo y ocioso: la corta cualquier
-   * cosa (un failover de Postgres, un timeout de NAT, un reinicio del pod de la
-   * base). Sin reconexión el pod queda vivo y mudo — pasa las probes, sirve
-   * HTTP, y nunca más emite un evento. Es la falla más traicionera de este
-   * camino, así que se reintenta para siempre.
+   * The listening connection is a long, idle socket: anything cuts it (a
+   * Postgres failover, a NAT timeout, a restart of the database pod). Without
+   * reconnection the pod stays alive and mute — it passes the probes, serves
+   * HTTP, and never emits another event. It is the most treacherous failure on
+   * this path, so it is retried forever.
    */
   reconnectDelayMs: CHANGE_FEED_RECONNECT_SECONDS * MILLISECONDS_PER_SECOND,
 } as const;
@@ -66,7 +66,7 @@ export const swaggerConfig = {
   path: 'docs',
   title: 'AI Form Creator API',
   description:
-    'Ingesta de documentos regulatorios: proxy de subida a RAGFlow, ' +
-    'registro en Postgres y arranque del pipeline de procesamiento.',
+    'Regulatory document ingestion: upload proxy to RAGFlow, ' +
+    'registration in Postgres and start of the processing pipeline.',
   version: '0.1.0',
 } as const;

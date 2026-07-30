@@ -1,12 +1,12 @@
 /**
- * Puente TS -> Design Tokens.
+ * TS -> Design Tokens bridge.
  *
- * Los tokens se definen UNA sola vez en `src/styles/index.css` (`@theme`).
- * Este módulo sólo expone *referencias* (`var(--token)`) para los casos donde
- * no se puede usar una clase de Tailwind: estilos inline, canvas, librerías de
- * charts, `<meta name="theme-color">`, etc.
+ * The tokens are defined exactly ONCE in `src/styles/index.css` (`@theme`).
+ * This module only exposes *references* (`var(--token)`) for the cases where a
+ * Tailwind class cannot be used: inline styles, canvas, chart libraries,
+ * `<meta name="theme-color">`, and so on.
  *
- * Prohibido: duplicar aquí el valor literal del token (`#4f46e5`).
+ * Forbidden: duplicating the literal token value here (`#4f46e5`).
  */
 const cssVar = (token: string) => `var(--${token})`;
 

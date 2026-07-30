@@ -6,44 +6,44 @@ import type { WorkflowRegulatoryDocument } from '@ai-form-creator/contracts/form
 import type { GeneratedForm } from '@ai-form-creator/contracts/form-generation/generated-form';
 
 /**
- * Todo lo que el workflow necesita del mundo, declarado como un tipo.
+ * Everything the workflow needs from the world, declared as a type.
  *
- * Es el mismo patrón que los puertos del back, y acá además resuelve un
- * problema concreto: el workflow no puede importar `activities/` (ESLint lo
- * bloquea, y el sandbox lo rompería), pero necesita los **tipos** de las
- * actividades para que `proxyActivities` devuelva algo tipado. Declararlos en
- * `domain/` deja al workflow dependiendo de la interfaz y no de la
- * implementación, que es lo que corresponde en las dos lecturas —la hexagonal
- * y la de Temporal—.
+ * It is the same pattern as the back's ports, and here it also solves a
+ * concrete problem: the workflow cannot import `activities/` (ESLint blocks it,
+ * and the sandbox would break it), but it needs the activity **types** so that
+ * `proxyActivities` returns something typed. Declaring them in `domain/` leaves
+ * the workflow depending on the interface and not on the implementation, which
+ * is the right thing under both readings — the hexagonal one and Temporal's.
  *
- * Cada input es un objeto y no una lista de parámetros: los argumentos de una
- * actividad viajan serializados y quedan grabados en el historial. Un objeto
- * con nombres se puede extender sin romper los workflows que ya están en vuelo;
- * una lista posicional, no.
+ * Every input is an object and not a list of parameters: the arguments of an
+ * activity travel serialised and get recorded in the history. An object with
+ * names can be extended without breaking workflows already in flight; a
+ * positional list cannot.
  */
 
 export type MarkStatusInput = {
   formGenerationId: string;
   status: FormGenerationStatus;
-  /** Se escribe sólo si viene. El estado y el contador no siempre avanzan juntos. */
+  /** Written only if provided. Status and counter do not always advance together. */
   attempts?: number;
 };
 
 export type RetrieveRegulatoryContextInput = {
-  /** El pedido del usuario, que es también la consulta al RAG. */
+  /** The user's request, which is also the query to the RAG. */
   prompt: string;
   documents: WorkflowRegulatoryDocument[];
 };
 
 export type RequestFormDraftInput = {
   prompt: string;
-  /** Fragmentos del RAG, ya armados como texto. Vacío si no hubo documentos. */
+  /** RAG chunks, already assembled as text. Empty if there were no documents. */
   regulatoryContext: string;
   /**
-   * Qué estuvo mal en el intento anterior. Vacío en el primero.
+   * What went wrong in the previous attempt. Empty on the first one.
    *
-   * Es lo que separa un reintento de un reintento útil: sin esto, pedirle lo
-   * mismo al mismo modelo con la misma temperatura devuelve el mismo error.
+   * This is what separates a retry from a useful retry: without it, asking the
+   * same thing of the same model at the same temperature returns the same
+   * error.
    */
   problems: string[];
 };
@@ -71,34 +71,34 @@ export type ApplyReviewInput = {
 export type FormGenerationActivities = {
   markStatus(input: MarkStatusInput): Promise<void>;
 
-  /** Devuelve los fragmentos relevantes como un solo texto para el prompt. */
+  /** Returns the relevant chunks as a single text for the prompt. */
   retrieveRegulatoryContext(
     input: RetrieveRegulatoryContextInput,
   ): Promise<string>;
 
-  /** Devuelve la respuesta del modelo **cruda**: un string que dice ser JSON. */
+  /** Returns the model's answer **raw**: a string claiming to be JSON. */
   requestFormDraft(input: RequestFormDraftInput): Promise<string>;
 
   /**
-   * Valida contra el schema del paquete y contra las reglas que el schema no
-   * puede expresar.
+   * Validates against the package schema and against the rules the schema
+   * cannot express.
    *
-   * Es una actividad y no una función llamada desde el workflow, aunque sea
-   * pura y no toque nada de afuera. El motivo es la reejecución: el workflow se
-   * queda hasta 30 días esperando revisión, y durante esos 30 días se va a
-   * desplegar código nuevo. Al reejecutarse, todo lo que esté **en** el
-   * workflow corre otra vez con la versión nueva; si para entonces el schema
-   * cambió y lo que antes validaba ahora no, el workflow tomaría un camino
-   * distinto al que ya está grabado en el historial y Temporal lo mataría con
-   * un error de no-determinismo. El resultado de una actividad, en cambio,
-   * queda grabado: se relee, no se recalcula.
+   * It is an activity and not a function called from the workflow, even though
+   * it is pure and touches nothing outside. The reason is re-execution: the
+   * workflow waits up to 30 days for a review, and during those 30 days new
+   * code will be deployed. On re-execution, everything **inside** the workflow
+   * runs again with the new version; if by then the schema changed and what
+   * used to validate no longer does, the workflow would take a path different
+   * from the one already recorded in the history and Temporal would kill it
+   * with a non-determinism error. An activity result, by contrast, is recorded:
+   * it is re-read, not recomputed.
    */
   validateFormDraft(input: { raw: string }): Promise<FormDraftValidation>;
 
   /**
-   * Compila el borrador a JSON de Formily y guarda las dos cosas, dejando la
-   * solicitud en AWAITING_REVIEW. Una sola actividad para que no exista un
-   * estado intermedio donde hay borrador pero no schema.
+   * Compiles the draft into Formily JSON and stores both, leaving the request
+   * in AWAITING_REVIEW. A single activity so that no intermediate state exists
+   * where there is a draft but no schema.
    */
   saveGeneratedForm(input: SaveGeneratedFormInput): Promise<void>;
 

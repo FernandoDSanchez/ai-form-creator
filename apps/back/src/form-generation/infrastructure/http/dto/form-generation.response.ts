@@ -6,43 +6,43 @@ import { ApiProperty } from '@nestjs/swagger';
 import type { FormGeneration } from '../../../domain/form-generation';
 
 /**
- * Vista HTTP de la entidad.
+ * HTTP view of the entity.
  *
- * Acá coincide campo a campo con el dominio —la entidad *es* el contrato
- * compartido—, así que el `from` parece de más. No lo es: el día que la tabla
- * gane una columna interna, esta clase es la que decide si sale o no. Sin ella,
- * la columna nueva viaja al front el mismo día que se agrega, sin que nadie lo
- * haya decidido.
+ * Here it matches the domain field by field — the entity *is* the shared
+ * contract — so the `from` looks superfluous. It is not: the day the table
+ * gains an internal column, this class is the one deciding whether it goes out
+ * or not. Without it, the new column travels to the front the same day it is
+ * added, without anybody having decided so.
  *
- * La usa también el gateway de WebSocket: el evento publica exactamente lo
- * mismo que devuelve el GET. Si divergieran, el front tendría que manejar dos
- * formas del mismo objeto según de dónde vino.
+ * The WebSocket gateway uses it too: the event publishes exactly the same thing
+ * the GET returns. If they diverged, the front would have to handle two shapes
+ * of the same object depending on where it came from.
  */
 export class FormGenerationResponse {
   @ApiProperty({ format: 'uuid' })
   id!: string;
 
-  @ApiProperty({ description: 'El pedido en lenguaje natural.' })
+  @ApiProperty({ description: 'The natural language request.' })
   prompt!: string;
 
   @ApiProperty({
     type: [String],
     format: 'uuid',
-    description: 'Documentos regulatorios elegidos al hacer el pedido.',
+    description: 'Regulatory documents chosen when making the request.',
   })
   regulatoryDocumentIds!: string[];
 
   @ApiProperty({ enum: Object.values(formGenerationStatuses) })
   status!: string;
 
-  @ApiProperty({ description: 'Intentos consumidos contra el modelo.' })
+  @ApiProperty({ description: 'Attempts spent against the model.' })
   attempts!: number;
 
   @ApiProperty({
     type: 'object',
     additionalProperties: true,
     nullable: true,
-    description: 'Borrador validado que devolvió el modelo.',
+    description: 'Validated draft returned by the model.',
   })
   draft!: GeneratedForm | null;
 
@@ -50,7 +50,7 @@ export class FormGenerationResponse {
     type: 'object',
     additionalProperties: true,
     nullable: true,
-    description: 'Schema de Formily listo para renderizar.',
+    description: 'Formily schema ready to render.',
   })
   formilySchema!: FormilyFormSchema | null;
 
@@ -80,8 +80,8 @@ export class FormGenerationResponse {
       formilySchema: formGeneration.formilySchema,
       failureReason: formGeneration.failureReason,
       reviewerNote: formGeneration.reviewerNote,
-      // Ya vienen como string ISO desde el mapper de Prisma: la entidad es el
-      // contrato compartido con el front y no maneja `Date`.
+      // They already arrive as ISO strings from the Prisma mapper: the entity
+      // is the contract shared with the front and does not handle `Date`.
       reviewedAt: formGeneration.reviewedAt,
       createdAt: formGeneration.createdAt,
       updatedAt: formGeneration.updatedAt,

@@ -9,19 +9,19 @@ import { regulatoryDocumentsDb } from '../data/regulatory-documents';
 
 const apiPath = (path: string) => `*${path}`;
 
-/** 202: el back acepta el documento y sigue procesándolo en segundo plano. */
+/** 202: the back accepts the document and keeps processing it in the background. */
 const ACCEPTED = 202;
 
 /**
- * Catálogo fijo para el selector de la pantalla de generación. Estáticos a
- * propósito: lo que se prueba ahí es elegir documentos, no subirlos.
+ * Fixed catalogue for the picker of the generation screen. Static on purpose:
+ * what is tested there is choosing documents, not uploading them.
  */
 const catalogue: AcceptedRegulatoryDocument[] = [
   {
     id: '3f1d9d2e-0b8a-4c5e-9f11-2a7b6c8d9e01',
     ragflowDocumentId: regulatoryDocumentsDb.ragflowDocumentId,
     ragflowDatasetId: regulatoryDocumentsDb.ragflowDatasetId,
-    fileName: 'resolucion-1234-control-sanitario.pdf',
+    fileName: 'resolution-1234-sanitary-control.pdf',
     sizeBytes: regulatoryDocumentsDb.sizeBytes,
     status: regulatoryDocumentStatuses.indexed,
     createdAt: '2026-07-20T10:00:00.000Z',
@@ -30,10 +30,11 @@ const catalogue: AcceptedRegulatoryDocument[] = [
     id: '8c2a4b6d-1e3f-4a70-9b25-5d8e0f1a2b34',
     ragflowDocumentId: 'c441fd3fa2fd22f0cd620353ad231115',
     ragflowDatasetId: regulatoryDocumentsDb.ragflowDatasetId,
-    fileName: 'providencia-aduanera-2026.pdf',
+    fileName: 'customs-ruling-2026.pdf',
     sizeBytes: regulatoryDocumentsDb.sizeBytes,
-    // Sin indexar: el selector lo ofrece igual, avisando que puede aportar
-    // poco. Mientras el pipeline de ingesta no exista, éste es el caso normal.
+    // Not indexed: the picker offers it anyway, warning that it may contribute
+    // little. While the ingestion pipeline does not exist, this is the normal
+    // case.
     status: regulatoryDocumentStatuses.pending,
     createdAt: '2026-07-26T09:15:00.000Z',
   },
@@ -54,12 +55,12 @@ export const regulatoryDocumentsHandlers = [
     async () => {
       await delay(MOCK_API_LATENCY_MS);
 
-      // No se lee el multipart a propósito. `request.formData()` anda en el
-      // navegador pero explota bajo jsdom: el `File` que crea jsdom no pasa la
-      // validación del parser multipart de undici (el de Node), y el handler
-      // se cae con un ERR_ASSERTION. Como el resto de los mocks, este devuelve
-      // el fixture; si algún día hace falta el eco del nombre real, va a haber
-      // que resolver ese choque primero.
+      // The multipart is deliberately not read. `request.formData()` works in
+      // the browser but blows up under jsdom: the `File` jsdom creates does not
+      // pass undici's multipart parser validation (Node's), and the handler
+      // dies with an ERR_ASSERTION. Like the rest of the mocks, this one
+      // returns the fixture; if one day echoing the real name is needed, that
+      // clash has to be solved first.
       const accepted: AcceptedRegulatoryDocument = {
         id: crypto.randomUUID(),
         ragflowDocumentId: regulatoryDocumentsDb.ragflowDocumentId,

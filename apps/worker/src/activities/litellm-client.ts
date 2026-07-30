@@ -11,19 +11,19 @@ import {
 import { toStrictJsonSchema } from '../domain/to-strict-json-schema';
 
 /**
- * Cliente de LiteLLM.
+ * LiteLLM client.
  *
- * LiteLLM expone la API de OpenAI y traduce hacia atrás al proveedor real, así
- * que acá se habla `chat/completions` sin saber si del otro lado hay Gemini,
- * Claude o GPT. Cambiar de modelo es cambiar `LITELLM_MODEL`.
+ * LiteLLM exposes the OpenAI API and translates back to the real provider, so
+ * here we speak `chat/completions` without knowing whether Gemini, Claude or
+ * GPT is on the other side. Switching models is changing `LITELLM_MODEL`.
  *
- * `fetch` nativo, sin SDK: es una sola llamada y el SDK de OpenAI traería su
- * propia capa de reintentos, que acá compite con la de Temporal.
+ * Native `fetch`, no SDK: it is a single call and the OpenAI SDK would bring
+ * its own retry layer, which here competes with Temporal's.
  */
 
 const CHAT_COMPLETIONS_PATH = '/v1/chat/completions';
 
-/** Nombre del schema en el `response_format`. Sólo lo ve el proveedor. */
+/** Schema name in the `response_format`. Only the provider sees it. */
 const RESPONSE_SCHEMA_NAME = 'generated_form';
 
 const chatRoles = {
@@ -32,9 +32,9 @@ const chatRoles = {
 } as const;
 
 /**
- * Lo mínimo que necesitamos de la respuesta. No se valida entera a propósito:
- * cada proveedor agrega campos suyos, y un schema estricto acá rompería con el
- * primer proveedor que devuelva algo de más.
+ * The minimum we need from the response. It is deliberately not validated in
+ * full: every provider adds fields of its own, and a strict schema here would
+ * break with the first provider returning something extra.
  */
 const completionResponseSchema = z.object({
   choices: z
@@ -49,7 +49,7 @@ const completionResponseSchema = z.object({
 
 export class FormDraftRequestFailedError extends Error {
   constructor(reason: string, options?: { cause?: unknown }) {
-    super(`No se pudo obtener el formulario del modelo: ${reason}`, {
+    super(`Could not get the form from the model: ${reason}`, {
       cause: options?.cause,
     });
     this.name = 'FormDraftRequestFailedError';
@@ -57,14 +57,14 @@ export class FormDraftRequestFailedError extends Error {
 }
 
 /**
- * El schema que viaja en `response_format`, proyectado una sola vez.
+ * The schema travelling in `response_format`, projected exactly once.
  *
- * A nivel de módulo y no por llamada: es el mismo objeto en cada intento y
- * recorrer 32 constantes por request no aporta nada.
+ * At module level and not per call: it is the same object on every attempt and
+ * walking 32 constants per request contributes nothing.
  */
 const responseSchema = toStrictJsonSchema(generatedFormSchema);
 
-/** Pide el borrador y devuelve el contenido crudo. Validarlo es de otro. */
+/** Asks for the draft and returns the raw content. Validating it is somebody else's job. */
 export const requestFormDraft = async (
   input: UserPromptInput,
 ): Promise<string> => {
@@ -75,10 +75,10 @@ export const requestFormDraft = async (
       { role: chatRoles.system, content: buildSystemPrompt() },
       { role: chatRoles.user, content: buildUserPrompt(input) },
     ],
-    // Structured output: el proveedor se encarga de que la respuesta tenga
-    // esta forma. No se confía en eso —igual se valida después— pero mueve el
-    // grueso del trabajo al que puede hacerlo con constrained decoding, en vez
-    // de a un bucle de reintentos.
+    // Structured output: the provider takes care of the answer having this
+    // shape. It is not trusted — it is validated afterwards anyway — but it
+    // moves the bulk of the work to whoever can do it with constrained
+    // decoding, instead of to a retry loop.
     response_format: {
       type: 'json_schema',
       json_schema: {
@@ -93,7 +93,7 @@ export const requestFormDraft = async (
 
   if (!parsed.success) {
     throw new FormDraftRequestFailedError(
-      'la respuesta de LiteLLM no tiene la forma esperada',
+      'the LiteLLM response does not have the expected shape',
       { cause: parsed.error },
     );
   }
@@ -102,10 +102,10 @@ export const requestFormDraft = async (
   const content = choice?.message.content;
 
   if (!content) {
-    // Pasa cuando el modelo corta por límite de tokens o por filtro de
-    // contenido: la respuesta llega con 200 y el contenido vacío.
+    // This happens when the model stops on a token limit or a content filter:
+    // the answer arrives with a 200 and empty content.
     throw new FormDraftRequestFailedError(
-      `el modelo no devolvió contenido (finish_reason: ${choice?.finish_reason ?? 'desconocido'})`,
+      `the model returned no content (finish_reason: ${choice?.finish_reason ?? 'unknown'})`,
     );
   }
 
@@ -130,20 +130,20 @@ const post = async (body: unknown): Promise<Response> => {
   } catch (cause) {
     const reason =
       cause instanceof Error && cause.name === 'TimeoutError'
-        ? `no respondió en ${llmConfig.timeoutMs} ms`
-        : 'no se pudo contactar el servicio';
+        ? `it did not answer within ${llmConfig.timeoutMs} ms`
+        : 'the service could not be reached';
 
     throw new FormDraftRequestFailedError(reason, { cause });
   }
 
   if (!response.ok) {
-    // El cuerpo del error de LiteLLM dice cuál es el problema real (modelo no
-    // autorizado, key vencida, presupuesto agotado). Sin él, el log muestra un
-    // 400 pelado y no hay por dónde empezar.
+    // The LiteLLM error body says what the real problem is (unauthorised model,
+    // expired key, exhausted budget). Without it, the log shows a bare 400 and
+    // there is nowhere to start.
     const detail = await response.text().catch(() => '');
 
     throw new FormDraftRequestFailedError(
-      `LiteLLM respondió HTTP ${response.status} ${detail.slice(0, ERROR_DETAIL_MAX_LENGTH)}`.trim(),
+      `LiteLLM answered HTTP ${response.status} ${detail.slice(0, ERROR_DETAIL_MAX_LENGTH)}`.trim(),
     );
   }
 

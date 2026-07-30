@@ -5,26 +5,26 @@ import type { FormGeneration as FormGenerationRow } from '@prisma/client';
 import type { FormGeneration } from '../../domain/form-generation';
 
 /**
- * Fila de Postgres → entidad de dominio.
+ * Postgres row → domain entity.
  *
- * Es el único punto donde `DateTime` se vuelve string ISO 8601 y donde el
- * `JsonValue` de Prisma se vuelve el tipo del contrato.
+ * It is the only place where `DateTime` becomes an ISO 8601 string and where
+ * Prisma's `JsonValue` becomes the contract type.
  *
- * Ese segundo salto es una aserción, y conviene tenerlo a la vista: Prisma tipa
- * las columnas `Json` como `JsonValue` porque no puede saber qué hay adentro, y
- * TypeScript no tiene con qué verificarlo. La garantía no viene de acá — viene
- * de que lo único que escribe esas columnas es el worker, y lo hace después de
- * pasar el `Value.Check` contra el mismo schema del que sale este tipo. Si
- * alguna vez otra cosa escribiera esas columnas, este `as` pasa a ser una
- * mentira y hay que validar al leer.
+ * That second jump is an assertion, and it is worth keeping in plain sight:
+ * Prisma types `Json` columns as `JsonValue` because it cannot know what is
+ * inside, and TypeScript has nothing to verify it with. The guarantee does not
+ * come from here — it comes from the only writer of those columns being the
+ * worker, and doing it after passing `Value.Check` against the very schema this
+ * type comes from. If anything else ever wrote those columns, this `as` becomes
+ * a lie and validation on read is required.
  */
 export const toFormGeneration = (row: FormGenerationRow): FormGeneration => ({
   id: row.id,
   prompt: row.prompt,
   regulatoryDocumentIds: row.regulatoryDocumentIds,
-  // El enum de Prisma y `formGenerationStatuses` comparten literales, así que
-  // TypeScript acepta la asignación directa. Si divergieran, el error saltaría
-  // acá — que es justamente donde queremos enterarnos.
+  // Prisma's enum and `formGenerationStatuses` share their literals, so
+  // TypeScript accepts the direct assignment. If they diverged, the error would
+  // surface here — which is exactly where we want to find out.
   status: row.status,
   attempts: row.attempts,
   draft: (row.draft as GeneratedForm | null) ?? null,

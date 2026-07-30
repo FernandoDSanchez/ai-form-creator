@@ -13,10 +13,7 @@ export const clientLoader = (queryClient: QueryClient) => async () => {
 };
 
 const FormsRoute = () => (
-  <ContentLayout
-    title="Formularios"
-    description="Plantillas disponibles para responder."
-  >
+  <ContentLayout title="Forms" description="Templates available to fill in.">
     <FormTemplatesList />
   </ContentLayout>
 );

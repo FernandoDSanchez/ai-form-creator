@@ -12,14 +12,14 @@ type RegulatoryDocumentPickerProps = {
 };
 
 /**
- * Selector múltiple de documentos.
+ * Multiple document picker.
  *
- * Casillas y no un `<select multiple>`: son pocas opciones, hay que ver el
- * estado de cada una, y un select múltiple es de las cosas más difíciles de
- * usar bien que tiene el HTML nativo (hay que saber que se hace con ctrl).
+ * Checkboxes and not a `<select multiple>`: there are few options, the status
+ * of each one has to be visible, and a multiple select is one of the hardest
+ * things to use well in native HTML (you have to know it is done with ctrl).
  *
- * Los documentos llegan por props. No los pide la feature: pertenecen a
- * `regulatory-documents`, y quien las compone es la ruta (§1).
+ * The documents arrive as props. The feature does not fetch them: they belong
+ * to `regulatory-documents`, and the one composing them is the route (§1).
  */
 export const RegulatoryDocumentPicker = ({
   documents,
@@ -42,8 +42,8 @@ export const RegulatoryDocumentPicker = ({
   if (documents.length === 0) {
     return (
       <p className="text-content-muted text-sm">
-        Todavía no hay documentos regulatorios cargados. Se puede generar igual:
-        el formulario va a salir sólo del pedido.
+        There are no regulatory documents loaded yet. You can still generate:
+        the form will come from the request alone.
       </p>
     );
   }
@@ -51,11 +51,11 @@ export const RegulatoryDocumentPicker = ({
   return (
     <fieldset className="gap-xs flex flex-col" aria-describedby={groupId}>
       <legend className="text-content text-sm font-medium">
-        Documentos regulatorios
+        Regulatory documents
       </legend>
       <p id={groupId} className="text-content-muted mb-xs text-xs">
-        Hasta {formGenerationLimits.maxRegulatoryDocuments}. Cuantos más, más
-        diluido queda cada uno en el contexto del modelo.
+        Up to {formGenerationLimits.maxRegulatoryDocuments}. The more there are,
+        the more diluted each one gets in the model&rsquo;s context.
       </p>
 
       <ul className="gap-2xs flex flex-col">
@@ -70,20 +70,21 @@ export const RegulatoryDocumentPicker = ({
                 <input
                   type="checkbox"
                   checked={isSelected}
-                  // El tope frena las altas, nunca las bajas: si ya está
-                  // elegido tiene que poder destildarse aunque se haya llegado
-                  // al límite.
+                  // The cap stops additions, never removals: if it is already
+                  // selected it has to be unselectable even when the limit has
+                  // been reached.
                   disabled={isDisabled || (hasReachedLimit && !isSelected)}
                   onChange={() => handleToggle(document.id)}
                   className="accent-brand-600"
                 />
                 <span className="text-content">{document.fileName}</span>
                 {isIndexed ? null : (
-                  // No se deshabilita: mientras el pipeline de ingesta no
-                  // exista, todos los documentos están en PENDING, y bloquearlos
-                  // dejaría el selector inservible. Se avisa y se deja decidir.
+                  // It is not disabled: while the ingestion pipeline does not
+                  // exist, every document is in PENDING, and blocking them
+                  // would leave the picker useless. It warns and lets you
+                  // decide.
                   <span className="text-content-muted text-xs">
-                    · sin indexar, puede aportar poco
+                    · not indexed, may contribute little
                   </span>
                 )}
               </label>

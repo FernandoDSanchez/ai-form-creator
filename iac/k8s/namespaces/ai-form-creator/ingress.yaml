@@ -7,24 +7,25 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    # nip.io resuelve *.192.168.18.23.nip.io → 192.168.18.23 (la IP del nodo),
-    # así el Ingress funciona en local sin tocar /etc/hosts ni tener DNS.
-    # En un cluster real, reemplazá por el dominio de verdad.
+    # nip.io resolves *.192.168.18.23.nip.io → 192.168.18.23 (the node IP), so
+    # the Ingress works locally without touching /etc/hosts and without DNS.
+    # On a real cluster, replace with the actual domain.
     - host: "app.192.168.18.23.nip.io"
       http:
         paths:
-          # La API se sirve bajo el MISMO origen que el front, y no en
-          # api.<host>, para que no haya CORS en el medio: el `api-client` manda
-          # `withCredentials: true`, y contra `Access-Control-Allow-Origin: *`
-          # el navegador bloquea la respuesta. Mismo origen también deja que
-          # las cookies funcionen solas el día que haya sesión.
+          # The API is served under the SAME origin as the front, and not on
+          # api.<host>, so there is no CORS in the middle: the `api-client`
+          # sends `withCredentials: true`, and against
+          # `Access-Control-Allow-Origin: *` the browser blocks the response.
+          # Same origin also lets cookies work on their own the day there is a
+          # session.
           #
-          # `/api` es además el prefijo global del back (`setGlobalPrefix`), así
-          # que el path viaja tal cual: nada de rewrites. El front se construye
-          # con VITE_APP_API_URL=/api (ver .env.example).
+          # `/api` is also the back's global prefix (`setGlobalPrefix`), so the
+          # path travels as-is: no rewrites. The front is built with
+          # VITE_APP_API_URL=/api (see .env.example).
           #
-          # Va primero a propósito: es la ruta más específica y tiene que ganarle
-          # al `/` que se lleva todo lo demás al front.
+          # It goes first on purpose: it is the most specific route and has to
+          # beat the `/` that takes everything else to the front.
           - path: /api
             pathType: Prefix
             backend:

@@ -10,32 +10,23 @@ that draft against a shared schema (retrying with the errors inside when it does
 not fit), compiles it into Formily JSON and then **stops** and waits for a human
 verdict. The screen follows the whole thing live over a WebSocket.
 
+The result is stored twice — as a semantic draft and as a renderable schema —
+so the same generation can be reviewed, rendered, filled in and audited without
+anybody writing a component for it.
+
 ## System architecture
 
-```mermaid
-flowchart LR
-    dashboard["⚛️ Front Dashboard<br/>React 19 + Vite"]
-    dynform["⚛️ Dynamic Form<br/>Formily renderer"]
-    back["🐈‍⬛ Backend<br/>NestJS · hexagonal"]
-    temporal["🌀 Temporal<br/>+ worker"]
-    litellm["🧠 LiteLLM<br/>model proxy"]
-    small["✨ Small Model<br/>embeddings"]
-    big["🌟 Big Model<br/>generation"]
-    db[("🐘 Database<br/>Postgres")]
-    ragflow["❄️ RAGFlow<br/>RAG over PDFs"]
+![System architecture: front dashboard and dynamic form talk to the NestJS backend; the backend enqueues on Temporal and reads Postgres; the Temporal worker talks to LiteLLM (small and big model) and RAGFlow, and writes to Postgres](./docs/images/system-architecture.png)
 
-    dashboard -->|"HTTP /api"| back
-    back -->|"WebSocket"| dynform
-    back -->|"enqueue + review signal"| temporal
-    temporal -->|"chat completions"| litellm
-    temporal -->|"retrieval"| ragflow
-    temporal -->|"status writes"| db
-    litellm --> small
-    litellm --> big
-    ragflow -->|"embeddings"| litellm
-    db -->|"LISTEN / NOTIFY"| back
-    back <-->|"read + insert"| db
-```
+| Piece            | What it is                | What it is there for                                                    |
+| ---------------- | ------------------------- | ----------------------------------------------------------------------- |
+| Front Dashboard  | React 19 + Vite           | Requesting a generation, following it live, approving or rejecting it   |
+| Dynamic Form     | Formily renderer          | Renders **any** generated schema — no component per form                |
+| Backend          | NestJS, hexagonal         | Ingests documents, accepts requests, fans changes out over the WebSocket |
+| Temporal         | Durable workflow + worker | Orchestrates the generation and survives restarts, retries and 30-day waits |
+| LiteLLM          | Model proxy               | The only holder of provider keys; small model for embeddings, big model for generation |
+| RAGFlow          | RAG over the PDFs         | Parses, chunks and indexes the regulations; answers retrieval queries   |
+| Database         | Postgres                  | Requests, statuses, drafts, compiled schemas — and the `NOTIFY` feed    |
 
 The arrows that matter and are easy to miss:
 
@@ -73,20 +64,421 @@ starts there and a person triggers it. Three things hold that up — the
 workflow's `condition`, the 409 of the `ReviewFormGeneration` use case, and the
 back's repository port having no `update` at all.
 
+---
+
+# The AI architecture
+
+Everything AI-shaped in this system is arranged around one problem: **a model
+producing JSON is not the same as a system producing a form**. The model
+contributes judgement — which data a regulation demands, what to call it,
+whether it is mandatory. Everything else is mechanical, verifiable and
+delegated to code, because code does not have a bad day.
+
+That split shows up in five decisions, each with a file behind it.
+
+## 1. What the model is asked for is not the format that gets rendered
+
+The renderer eats Formily JSON: `x-decorator`, `x-component-props`, a `type`
+per field, nested recursively. Asking a model for that is asking it to be
+correct about a dozen mechanical details that are not business decisions — all
+surface for mistakes, and every mistake costs a retry.
+
+So the model is asked for a **draft** instead
+([`packages/contracts/src/form-generation/generated-form.ts`](./packages/contracts/src/form-generation/generated-form.ts)):
+
+```jsonc
+{
+  "title": "Import Declaration for Goods Subject to Sanitary Control",
+  "description": "Filed by the importer before the goods arrive.",
+  "fields": [
+    {
+      "name": "importerTaxId",           // from a closed enum
+      "title": "Importer identification",
+      "component": "TextField",           // from a closed enum
+      "isRequired": true,
+      "helpText": "",
+      "placeholder": "900123456-7",
+      "options": []
+    }
+  ]
+}
+```
+
+and the worker compiles that into Formily
+([`apps/worker/src/domain/to-formily-schema.ts`](./apps/worker/src/domain/to-formily-schema.ts)),
+a pure function with a unit test. The value `type` is decided by the component,
+not by the model: a `CheckboxField` stores a boolean and a `NumberField` a
+number, always.
+
+## 2. The field vocabulary is closed
+
+This is the piece that makes what the AI generates *verifiable*
+([`packages/contracts/src/form-generation/form-field-name.ts`](./packages/contracts/src/form-generation/form-field-name.ts)).
+Without it the model would emit `company_name`, `legalName` and `companyName`
+for the same thing, and no downstream consumer could read two forms with the
+same code.
+
+Today the vocabulary has **34 names in two groups**:
+
+- **Compliance (cross-cutting, 18)** — `entityLegalName`, `entityTaxId`,
+  `entityCountry`, `economicActivity`, `contactPersonName`, `contactEmail`,
+  `regulationReference`, `obligationDescription`, `controlDescription`,
+  `riskLevel`, `complianceStatus`, `evidenceDescription`, `responsibleParty`,
+  `assessmentDate`, `effectiveDate`, `expirationDate`, `observations`,
+  `declarationAccepted`.
+- **Customs and foreign trade (16)** — `importerTaxId`, `exporterName`,
+  `customsRegime`, `hsTariffCode`, `merchandiseDescription`, `originCountry`,
+  `portOfEntry`, `transportMode`, `billOfLadingNumber`,
+  `customsDeclarationNumber`, `declaredValue`, `currencyCode`, `grossWeightKg`,
+  `packageCount`, `arrivalDate`, `dutiesPaid`.
+
+Each one carries a description in `formFieldCatalog`, and **that description is
+not documentation — it travels in the prompt**. It is the only thing the model
+has in order to choose well. The catalogue is a `Record<FormFieldName, …>`, so
+adding a name to the enum without describing it does not compile, and the
+prompt is generated from the catalogue, so a new field shows up in the prompt
+the same day it is added and not the day somebody remembers to update a
+paragraph.
+
+Seven components are accepted: `TextField`, `TextareaField`, `NumberField`,
+`SelectField`, `CheckboxField`, `RadioGroupField`, `DateField`. Only the two
+list-backed ones carry `options`, and for them they are mandatory.
+
+## 3. The prompt is built from the contract, never by hand
+
+[`apps/worker/src/domain/build-generation-prompt.ts`](./apps/worker/src/domain/build-generation-prompt.ts)
+is a pure function: data in, two strings out. It is tested without a network.
+
+- The **system message** states the role (regulatory compliance analyst), prints
+  the vocabulary as a table generated from `formFieldCatalog`, lists the
+  accepted components, and states the rules — between 1 and 25 fields, no
+  repeated `name`, `isRequired` only when the regulation demands it, fields
+  ordered the way they would be filled in.
+- The **user message** carries the request verbatim, then the retrieved chunks
+  under `## Regulatory sources` ("if they contradict the request, the chunks
+  win"), and — only on a retry — the previous attempt's errors under
+  `## Correction`, **last**, because it is what the model has freshest when it
+  starts writing and the only thing separating this attempt from the failed one.
+
+Limits like "at most 25 fields" are read from `generatedFormLimits`, so the
+sentence in the prompt and the schema that enforces it cannot drift apart.
+
+## 4. Retrieval is scoped to the documents the person picked
+
+![RAGFlow dataset with the uploaded regulations, showing chunk counts and parse status per file](./docs/images/ragflow-dataset.png)
+
+RAGFlow parses, chunks and indexes each uploaded PDF (that `Chunks` column is
+how you tell an indexed document from one that will contribute nothing — the
+front shows the same thing as *"not indexed, may contribute little"*).
+
+At generation time
+([`apps/worker/src/activities/ragflow-retrieval.ts`](./apps/worker/src/activities/ragflow-retrieval.ts)):
+
+- the query is **the user's request as written** — it is what best describes
+  what is being looked for;
+- `document_ids` narrows the search to what the person chose, so a dataset with
+  a hundred documents does not add noise from the ninety-five that are beside
+  the point;
+- `dataset_ids` is derived from the documents themselves, not from a configured
+  default: what counts is where a document *is*, not where we expected it to be;
+- `top_k: 8`, `similarity_threshold: 0.2` — more context is not better, it
+  dilutes the ask;
+- every chunk is returned **attributed to its document**. Without the
+  attribution the model blends two regulations into one form with no way to
+  tell them apart, and the reviewer cannot trace where a field came from.
+- **zero chunks is not an error.** The documents may say nothing about what was
+  asked, or may still be indexing. The form is generated anyway, with less
+  backing — and the reviewer will notice.
+
+Generating with **no documents at all** is also valid: you get a form leaning
+only on the vocabulary and on the ask.
+
+## 5. The model call goes through a proxy, with constrained decoding
+
+![LiteLLM request logs: per-request cost, duration, status and virtual key hash](./docs/images/litellm-request-logs.png)
+
+LiteLLM exposes the OpenAI API and translates to the real provider, so
+[`apps/worker/src/activities/litellm-client.ts`](./apps/worker/src/activities/litellm-client.ts)
+speaks `chat/completions` without knowing whether Gemini, Claude or GPT is on
+the other side. Switching models is changing `LITELLM_MODEL` — not a
+deployment, not a code change. What the proxy buys:
+
+- **One place for the provider keys.** The browser never sees one, the back
+  never sees one, and RAGFlow's embeddings go through the same door.
+- **Virtual keys per consumer.** The worker's key differs from RAGFlow's, so
+  they rotate separately and the spend attributes itself (that `Key Hash`
+  column above).
+- **Cost and latency per request**, which is how you find out that a
+  twenty-field form with RAG context inside costs $0.008 and takes 15 seconds —
+  and how you notice a run of failures the moment a free-tier quota runs out.
+
+The request itself:
+
+- `temperature: 0.2` — low but **not zero**. Zero sounds right until the
+  schema-error retry returns exactly the same invalid answer all three times.
+- `response_format: { type: 'json_schema', strict: true }`, with the schema
+  projected from the TypeBox contract by
+  [`to-strict-json-schema.ts`](./apps/worker/src/domain/to-strict-json-schema.ts).
+  That projection exists because `strict` mode is a narrow dialect: nothing
+  optional, `additionalProperties: false` everywhere, no `format`, and
+  `minItems`/`maxItems` stripped off arrays of objects because Gemini rejects
+  the whole request with them.
+- Structured output is used but **not trusted**: it moves the bulk of the work
+  to whoever can do it with constrained decoding instead of to a retry loop,
+  and the answer is validated afterwards anyway.
+- Native `fetch`, no SDK: it is one call, and the OpenAI SDK would bring its own
+  retry layer to compete with Temporal's.
+
+## 6. Validation is three filters, and its output is written for the model
+
+[`apps/worker/src/domain/validate-generated-form.ts`](./apps/worker/src/domain/validate-generated-form.ts)
+is the gatekeeper: this is where it is decided whether what came back gets
+stored or gets handed back for fixing.
+
+1. **Is it JSON?** Models still wrap answers in ` ```json ` sometimes. That gets
+   stripped rather than rejected — spending one of three attempts on something a
+   `slice` fixes is throwing an attempt away.
+2. **Does it meet the schema?** `Value.Check` against `generatedFormSchema` —
+   the very same schema that travelled in `response_format`. `name` and
+   `component` inside the enums, everything mandatory present, nothing extra.
+3. **Does it meet what the schema cannot say?** JSON Schema cannot express
+   "`options` is mandatory if and only if the component is a list", nor "the
+   `name`s do not repeat". Without this third filter a `SelectField` with no
+   options would be stored — one that validates perfectly and renders an empty
+   dropdown.
+
+Every rejection is phrased as an instruction, because that text is fed straight
+back to the model:
+
+```
+At /fields/2/name: Expected union value. Received: "companyName".
+The "customsRegime" field uses SelectField, which needs at least one option in `options`.
+```
+
+## 7. The repair loop lives in the workflow, not in a retry policy
+
+![Temporal Web UI: the generateForm workflow running, its input, its 47-event history and the 30-day review timer](./docs/images/temporal-workflow.png)
+
+Look at that screenshot: the workflow has been *running for 2h 25m*, its last
+event is a **timer with a 30-day fire timeout**, and its whole input — prompt,
+document ids, RAGFlow ids — is recorded in the history. That is the thing
+Temporal contributes and that cannot be obtained any other way: the retry loop,
+the wait for a human signature and the status of every request survive the pod
+restarting, being replaced or dying halfway.
+
+The loop itself
+([`generate-form.workflow.ts`](./apps/worker/src/workflows/generate-form.workflow.ts)):
+
+```
+for attempt in 1..3
+    mark GENERATING (first) | REPAIRING (rest)
+    raw = requestFormDraft(prompt, chunks, problems)   ← 5 min timeout
+    mark VALIDATING
+    validation = validateFormDraft(raw)                 ← an activity, on purpose
+    if valid → save + AWAITING_REVIEW
+    problems = validation.problems                      ← next prompt carries them
+```
+
+Four decisions worth naming:
+
+- **Three attempts and no more.** The first retry with the errors inside fixes
+  almost everything that gets fixed. If the third still fails, the problem is
+  the request, the vocabulary or the prompt — none of which is fixed by
+  insisting.
+- **This is not Temporal's retry policy.** That one re-executes the same
+  activity with the same arguments, which at a low temperature returns almost
+  the same invalid answer. Here the arguments change: the errors go in. The
+  Temporal retry (2 s, ×2 backoff, 3 attempts) is still there, for *transport*
+  failures — LiteLLM not answering, the network dropping.
+- **`validateFormDraft` is an activity even though it is a pure function.** The
+  workflow may wait 30 days for a human, and in 30 days new code gets deployed;
+  a pure function that decides a workflow path could then change its mind on
+  re-execution and blow up with a `Nondeterminism error`. An activity's result
+  is recorded in the history and re-read, not recomputed.
+- **`GENERATING` and `REPAIRING` are different statuses** because to whoever is
+  watching the screen they mean different things: *"this is taking a while"* vs.
+  *"this is having trouble"*.
+
+Timeouts are split per activity kind — 30 s for the Postgres writes, 1 min for
+retrieval, 5 min for the model call — so a hung database write is not discovered
+five minutes late.
+
+## 8. The AI never publishes on its own
+
+Every generation halts at `AWAITING_REVIEW`. What the reviewer approves is not a
+summary of the form: it is **the form itself, rendered by the same `DynamicForm`
+component that end users will fill in**, with an optional note attached to the
+verdict.
+
+The verdict travels as a Temporal signal, and the worker — not the back — writes
+the final status. Approve or reject, the row keeps the reviewer's note and the
+timestamp.
+
+---
+
+# How a form is generated, end to end
+
+![The generation screen: a prompt box, the regulatory document picker with indexing hints, and the list of recent requests with their statuses](./docs/images/form-generation-request.png)
+
+> Screenshot captured before the repo-wide English pass; the UI copy now reads
+> in English.
+
+1. **Someone describes what they need** (10–2000 characters) and ticks up to
+   **5** regulatory documents. The cap is not arbitrary: each document adds
+   chunks to the context and past a point the model starts ignoring the ones in
+   the middle. Documents that are not indexed yet are flagged as such — they can
+   be picked, they will just contribute little.
+2. **`POST /api/form-generations`** — the back validates the prompt limits,
+   checks every document id exists, writes the row as `PENDING`, starts the
+   `generateForm` workflow on the `form-generation` queue and answers **202**
+   without waiting for the model.
+3. **`RETRIEVING`** — the worker queries RAGFlow, scoped to those documents.
+4. **`GENERATING`** — LiteLLM, structured output, the prompt built from the
+   contract.
+5. **`VALIDATING`** — three filters.
+6. **`REPAIRING`** — up to twice more, each time with the errors written into the
+   prompt.
+7. **`AWAITING_REVIEW`** — draft + compiled Formily schema + status are written
+   in **a single `UPDATE`**. Two statements would leave an instant where the
+   schema is stored under the old status, and since the status change is what
+   fires the `NOTIFY`, the front could be told to render a schema that is not
+   there yet.
+8. **A person approves or rejects.** `POST /api/form-generations/:id/review`
+   delivers the signal and answers **204** — the final status is written by the
+   worker and arrives on its own.
+9. **`APPROVED` / `REJECTED` / `FAILED`.**
+
+Every status change follows the same road back to the screen:
+
+```
+UPDATE form_generations ─► trigger ─► pg_notify ─► back (LISTEN) ─► WebSocket ─► front
+```
+
+The `pg_notify` payload carries **only the id and the status**, not the row: the
+payload has a hard 8 KB cap and a Formily schema goes over it with any
+medium-sized form. The back re-reads by id and publishes the already-mapped
+entity. The REST `GET`s still exist and are not redundant — the socket brings
+changes *from the moment you connected*, and the screen needs a starting point
+(and a safety net if the socket never connects).
+
+---
+
+# How the forms are persisted
+
+Two tables, and every column in them is there for a reason
+([`apps/back/prisma/schema.prisma`](./apps/back/prisma/schema.prisma)).
+
+### `form_generations` — the request and everything the pipeline piled on it
+
+| Column                    | What it holds                                                     |
+| ------------------------- | ------------------------------------------------------------------ |
+| `prompt`                  | The ask, exactly as the person wrote it                            |
+| `regulatory_document_ids` | `UUID[]` — the documents chosen, as a **snapshot**                  |
+| `status`, `attempts`      | Where it is, and how many times the model was asked                |
+| `draft` (jsonb)           | The model output that passed validation — the **semantic** form    |
+| `formily_schema` (jsonb)  | The compiled draft — the **renderable** form                       |
+| `failure_reason`          | Why it fell over, in plain words                                   |
+| `reviewer_note`, `reviewed_at` | Who decided what, and when                                    |
+| `created_at`, `updated_at` | Indexed together with `status` for the list screen                |
+
+**Why two representations of the same form.** They are not redundant, they
+answer different questions:
+
+- `formily_schema` answers *"how is this drawn?"*. It is what the front renders,
+  and it is format-coupled: change the renderer, and this is what has to be
+  recompiled.
+- `draft` answers *"what is this form asking for?"*. Its field names come from
+  the closed vocabulary, so a downstream consumer can read `entityTaxId` across
+  every form ever generated without knowing anything about Formily. Reporting,
+  prefilling, mapping to a government API, diffing two versions of a
+  regulation's form — all of that reads `draft`, not the compiled schema.
+
+The compiled schema can always be rebuilt from the draft by re-running a pure
+function. The draft cannot be rebuilt from anything.
+
+**Why `regulatory_document_ids` is an array and not a join table.** This is the
+snapshot of a request, not a live relation. If a document is deleted tomorrow,
+what was generated that day has to remain explainable with what existed that day
+— and a foreign key with `ON DELETE CASCADE` would take exactly that evidence
+away. Together with `prompt`, `attempts`, `draft` and `reviewer_note`, the row is
+a self-contained audit trail: *this text, against these documents, produced this
+form, in this many tries, and this person signed it off.*
+
+### `regulatory_documents` — what the forms are grounded on
+
+The file itself lives in RAGFlow's MinIO; this table keeps the pointer
+(`ragflow_document_id`, unique, plus its `ragflow_dataset_id`), the metadata
+(`file_name`, `mime_type`, `size_bytes`) and the ingestion status
+(`PENDING → PROCESSING → INDEXED → FAILED`).
+
+### What is *not* there yet
+
+The `/forms` catalogue — listing published forms and submitting responses — is
+served by **MSW mocks** today; there is no `form-templates` controller in the
+back, and no promotion step turning an `APPROVED` generation into a published
+template with its own responses table. The renderer, the contract and the stored
+`formily_schema` are all in place; what is missing is the table and the two
+endpoints. Run the front with `VITE_APP_ENABLE_API_MOCKING=true` to see that
+half of the product working end to end.
+
+---
+
+# What you can build with it
+
+The system is not "a customs form generator". It is a pipeline that turns
+*regulation + request* into *validated, renderable, auditable form*, and the
+domain is decided by two things: the PDFs you upload and the vocabulary in
+`formFieldCatalog`. The compliance group is cross-cutting on purpose — it
+covers a surprising share of the scenarios below on its own.
+
+| Scenario                      | The prompt you would write                                                                  | Documents you would upload                | Vocabulary                       |
+| ----------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------- |
+| **Customer / supplier onboarding** | "Onboarding form for a new supplier: legal identity, activity, contact and sworn declaration" | Internal onboarding policy                | Compliance group, as-is          |
+| **KYC / AML**                 | "Know-your-customer form for a legal entity opening an account, with risk classification"     | AML regulation, sanctions circular        | + beneficial owner, PEP status   |
+| **Information request (RFI)** | "Form to request evidence of the controls a vendor has in place for our annual review"        | The vendor questionnaire standard         | Compliance group, as-is          |
+| **Compliance attestation**    | "Quarterly attestation form: obligation, implemented control, status, evidence, responsible"  | The regulation being attested             | Compliance group, as-is          |
+| **Customs declaration**       | "Import declaration for goods subject to sanitary control, with importer, HS code and value"  | The customs regulation                    | Customs group, as-is             |
+| **Permit / licence renewal**  | "Renewal form for an operating licence, with effective and expiry dates and the declaration"  | The licensing resolution                  | Compliance group, as-is          |
+| **Incident / breach report**  | "Form to report a personal-data breach to the authority within the legal deadline"            | The data-protection law                   | + incident date, affected count  |
+| **Audit evidence collection** | "Form the auditee fills in per finding: control, evidence, responsible area, remediation date" | Audit programme, the applicable standard | Compliance group, as-is          |
+| **ESG / sustainability**      | "Annual emissions and social-indicators reporting form for a mid-sized company"               | The reporting standard (e.g. a CSRD annex)| + emissions scope, units         |
+| **Data subject request (DSAR)** | "Form for a person to exercise access, rectification or deletion of their data"              | The privacy regulation                    | + request type, identity proof   |
+| **Product safety / adverse events** | "Adverse-event report form for a medical device, with severity and traceability"        | The pharmacovigilance guideline           | + batch number, severity         |
+| **Grant / subsidy application** | "Application form for an export subsidy, with the eligibility declarations"                  | The call for applications                 | Compliance + customs             |
+
+The rows marked *"as-is"* work today with nothing but a PDF and a sentence. The
+rest need what is honestly the extension mechanism of this product:
+
+**Adding a domain = adding rows to the vocabulary, not writing code.** A new
+field is one entry in `formFieldNames`, one description in `formFieldCatalog`
+(which will not compile without it) — and from that moment it is in the prompt,
+in the structured-output enum, in the validator and in the front. Only a field
+that needs a *new kind of control* (a slider, a file upload) touches React:
+constant in `packages/contracts` → component in `features/dynamic-form/fields/`
+→ one entry in the `SchemaField` map. Three files, nothing else.
+
+And in the other direction: because every form's fields come from the same
+closed list, forms generated for different scenarios are **mutually readable**.
+An `entityTaxId` collected in an onboarding form is the same key as the
+`entityTaxId` in a compliance attestation, which is what makes prefilling,
+cross-scenario reporting and mapping to an external API possible at all.
+
+---
+
 ## Packages
 
-| Package                                     | What it is                                                                                                                                                                                                    |
-| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [`apps/front`](./apps/front)                | React 19 + Vite 8. Dynamic forms from JSON Schema with [Formily](https://formilyjs.org/), [bulletproof-react](https://github.com/alan2207/bulletproof-react/tree/master/apps/react-vite) architecture           |
-| [`apps/back`](./apps/back)                  | NestJS + Prisma + Postgres. Document ingestion, generation requests, WebSocket fan-out. Hexagonal architecture                                                                                                  |
-| [`apps/worker`](./apps/worker)              | Temporal worker. The only process talking to the model and the only one moving a generation's status                                                                                                           |
-| [`packages/contracts`](./packages/contracts) | TypeBox schemas that cross the wire — HTTP, the Temporal queue and the WebSocket. One definition, three consumers                                                                                              |
+| Package                                      | What it is                                                                                                                                                                                            |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`apps/front`](./apps/front)                 | React 19 + Vite 8. Dynamic forms from JSON Schema with [Formily](https://formilyjs.org/), [bulletproof-react](https://github.com/alan2207/bulletproof-react/tree/master/apps/react-vite) architecture    |
+| [`apps/back`](./apps/back)                   | NestJS + Prisma + Postgres. Document ingestion, generation requests, WebSocket fan-out. Hexagonal architecture                                                                                          |
+| [`apps/worker`](./apps/worker)               | Temporal worker. The only process talking to the model and the only one moving a generation's status                                                                                                   |
+| [`packages/contracts`](./packages/contracts) | TypeBox schemas that cross the wire — HTTP, the Temporal queue, the WebSocket **and the model's response format**. One definition, four consumers                                                       |
 
 All four architectures are **enforced by ESLint**: breaking them fails the lint
 and blocks the commit. The coding rules (naming, magic strings, design tokens,
-variant mapping) are in [`CLAUDE.md`](./CLAUDE.md). The tasks that need a human
-(credentials, a real backend) are in [`HUMAN-TASK.md`](./HUMAN-TASK.md).
-Infrastructure lives in [`iac/`](./iac/README.md).
+variant mapping) are in [`CLAUDE.md`](./CLAUDE.md). Infrastructure lives in
+[`iac/`](./iac/README.md), and the local RAGFlow stack in
+[`RAGFLOW-STARTUP.md`](./RAGFLOW-STARTUP.md).
 
 ## Running it locally
 
@@ -137,7 +529,7 @@ Then the backend, in its own terminal:
 
 ```bash
 cd apps/back
-cp .env.example .env      # fill in the credentials — see HUMAN-TASK.md
+cp .env.example .env      # fill in the credentials
 npm install
 npm run db:deploy         # applies the migrations
 npm run dev               # http://localhost:8080 — Swagger at /docs
@@ -147,7 +539,7 @@ And the worker, in another one:
 
 ```bash
 cd apps/worker
-cp .env.example .env      # LITELLM_API_KEY, RAGFLOW_API_KEY, DATABASE_URL
+cp .env.example .env      # LITELLM_API_KEY, LITELLM_MODEL, RAGFLOW_API_KEY, DATABASE_URL
 npm install
 npm run dev               # it listens on no port: it takes work from the queue
 ```
@@ -162,8 +554,14 @@ cd apps/front
 npm run dev
 ```
 
+Switching model is `LITELLM_MODEL` in the worker's `.env`
+(`gemini/gemini-flash-latest`, `anthropic/claude-sonnet-5`, `openai/gpt-…`) —
+LiteLLM routes by prefix and holds every provider key.
+
 To watch what a generation is doing when it gets stuck, the Temporal UI is the
 place: `kubectl -n ai-form-creator port-forward svc/temporal-ui-svc 8080:8080`.
+The event history shows the exact input, every activity attempt and the pending
+timer, which is how the screenshot further up was taken.
 
 ### Ports at a glance
 
@@ -251,7 +649,8 @@ error  The filename "Bad-Example.tsx" does not match KEBAB_CASE.
 
 This is the reference feature. It renders **any** form out of the JSON Schema
 the API returns: there is no component per form, there is one renderer and a
-catalogue of fields.
+catalogue of fields. It is what draws the review preview and what would draw a
+published form.
 
 ```
 src/features/dynamic-form/
@@ -473,7 +872,8 @@ export const DynamicForm = ({
 ```
 
 It knows no concrete field: it is reusable for any schema. The generation review
-screen renders the very same component in preview mode.
+screen renders the very same component in preview mode — what a reviewer
+approves is the form itself, not a description of it.
 
 ### 8. Composition with data (`components/form-template-detail.tsx`)
 
@@ -550,6 +950,9 @@ it('does not submit if a required field is missing', async () => {
 
 ## Example of a schema the app consumes
 
+This is what comes out of the compiler — `formily_schema` in the database, and
+what the renderer eats:
+
 ```jsonc
 {
   "type": "object",
@@ -580,8 +983,8 @@ it('does not submit if a required field is missing', async () => {
 ```
 
 Adding a new form to the product **requires no code**: a new schema is enough,
-and the AI can generate it. Code only gets written when a field type that does
-not exist yet shows up.
+and the AI generates it. Code only gets written when a field type that does not
+exist yet shows up.
 
 ## License
 

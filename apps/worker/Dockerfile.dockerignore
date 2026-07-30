@@ -1,0 +1,26 @@
+# Ignore propio de este Dockerfile: BuildKit lo prefiere sobre el
+# `.dockerignore` de la raíz del contexto. Existe porque el contexto pasó a ser
+# el monorepo entero (el worker necesita `packages/contracts`), y sin esto se le
+# mandarían al daemon el checkout de RAGFlow, las dos apps y todos los
+# node_modules.
+
+# lo que se reinstala/recompila dentro de la imagen
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+
+# secretos y ruido local
+**/.env
+**/.env.*
+**/*.log
+.git
+.husky
+.claude
+
+# lo que no participa del build del worker
+apps/front
+apps/back
+ragflow
+iac
+steps

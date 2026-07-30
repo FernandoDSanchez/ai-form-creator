@@ -31,10 +31,46 @@ Cosas que requieren decisión, credenciales o acceso humano. Marca al completar.
       registry: en `iac/README.md` («Pendiente») quedaron evaluados ghcr.io y
       el registry que ya corre en el cluster, con lo que cuesta cada uno.
 
-- [ ] **Capa de Temporal.** El puerto (`DocumentProcessingLauncher`) y la
-      llamada del caso de uso ya existen; hoy los tapa un adaptador que sólo
-      loguea, así que el documento queda en `PENDING` para siempre. Falta el
-      worker, el workflow `ProcessRagDoc` y el adaptador que lo arranca.
+- [ ] **Credenciales del worker de Temporal.** `apps/worker` ya existe y
+      orquesta la generación de formularios, pero necesita tres valores en
+      `iac/…/secrets/worker.env` (plantilla en `worker.env.example`). Sin ellos
+      el pod **no arranca**: la validación de `src/config/env.ts` es estricta a
+      propósito, igual que la del back.
+  1. `LITELLM_API_KEY` — virtual key propia del worker, creada con
+     `LITELLM_MASTER_KEY`. Una por consumidor: distinta de la del back y de la
+     de RAGFlow, así se rotan por separado y el gasto se atribuye solo.
+     ```bash
+     kubectl -n ai-form-creator exec deploy/litellm -- \
+       curl -s -X POST http://localhost:4000/key/generate \
+         -H "Authorization: Bearer $LITELLM_MASTER_KEY" \
+         -H 'Content-Type: application/json' \
+         -d '{"models":["gemini/gemini-flash-latest"],"key_alias":"worker"}'
+     ```
+  2. `RAGFLOW_API_KEY` — la misma historia que la del back, pero key propia.
+  3. `DATABASE_URL` — el mismo Postgres que el back (`app-postgres`). El worker
+     sólo escribe estados; las migraciones las sigue corriendo el back.
+
+     El modelo va en el ConfigMap `worker-config` (`LITELLM_MODEL`), no en el
+     secret: no es secreto y cambiarlo no debería ser un despliegue de imagen.
+     Tiene que estar dado de alta en `configs/litellm-config.yaml`.
+
+- [ ] **Imagen del worker.** Se construye como las otras dos, desde la raíz del
+      repo, pero **no es Alpine** — el SDK de Temporal trae su núcleo en Rust y
+      sólo publica prebuilds para glibc; sobre musl la imagen construye entera y
+      revienta al arrancar.
+  ```bash
+  docker build -t ai-form-creator/worker:dev -f apps/worker/Dockerfile .
+  docker save ai-form-creator/worker:dev | sudo k3s ctr images import -
+  ```
+
+- [ ] **Procesamiento de documentos en Temporal.** La generación de formularios
+      ya corre en `apps/worker`, pero la ingesta no: el puerto
+      `DocumentProcessingLauncher` sigue tapado por un adaptador que sólo
+      loguea, así que los documentos quedan en `PENDING` para siempre y RAGFlow
+      no devuelve chunks. Los formularios se generan igual, apoyados sólo en el
+      pedido y el vocabulario — con menos contexto del que el usuario cree que
+      dio. Falta el workflow `ProcessRagDoc` (puede vivir en el mismo worker,
+      en otra task queue) y el adaptador que lo arranca.
 
 - [ ] **Frontend contra el backend real.** Hoy la API del front vive en
       `src/testing/mocks/`. Cuando exista el servicio:
@@ -44,10 +80,11 @@ Cosas que requieren decisión, credenciales o acceso humano. Marca al completar.
      `src/features/dynamic-form/types/form-template.ts`
      (`GET /form-templates`, `GET /form-templates/:id`,
      `POST /form-templates/:id/responses`).
-- [ ] **Generación de schemas con IA.** Decidir proveedor y si la generación
-      ocurre en backend (recomendado: la API key nunca debe llegar al cliente)
-      o en un endpoint propio. El frontend sólo consume el JSON Schema
-      resultante.
+- [x] **Generación de schemas con IA.** Resuelto: la generación ocurre en
+      `apps/worker`, orquestada por Temporal y contra LiteLLM. Ninguna API key
+      llega al cliente. El front manda el prompt, escucha el avance por
+      WebSocket y aprueba el resultado; el JSON de Formily lo compila el worker
+      a partir de un borrador con vocabulario cerrado (`packages/contracts`).
 - [ ] **Autenticación.** No hay login. bulletproof-react usa
       `react-query-auth` + `ProtectedRoute`; si se necesita, se añade en
       `src/lib/auth.tsx` y se envuelve el router.
@@ -69,7 +106,7 @@ Cosas que requieren decisión, credenciales o acceso humano. Marca al completar.
      `back.env`: una key por consumidor, así se rotan por separado.
   2. Registrar el proveedor una vez desde la UI de RAGFlow: _Model providers_ →
      **OpenAI-API-Compatible**, base URL `http://litellm:4000/v1`, esa virtual
-     key, y dar de alta los modelos `gemini/gemini-2.5-flash` (chat) y
+     key, y dar de alta los modelos `gemini/gemini-flash-latest` (chat) y
      `gemini/gemini-embedding-001` (embedding).
 
      Por qué hace falta si ya está en el config: en la v0.26.4 que corre el

@@ -29,6 +29,16 @@ const envSchema = z.object({
 
   /** Dataset (knowledge base) donde aterrizan los documentos regulatorios. */
   RAGFLOW_DATASET_ID: z.string().min(1),
+
+  /** Frontend de Temporal. En el cluster: temporal-server:7233 */
+  TEMPORAL_ADDRESS: z.string().min(1),
+
+  /**
+   * Namespace de Temporal. `default` es el que crea sola la imagen
+   * auto-setup del bundle; se deja configurable porque separar por namespace es
+   * la forma barata de que dos entornos compartan un cluster de Temporal.
+   */
+  TEMPORAL_NAMESPACE: z.string().min(1).default('default'),
 });
 
 const parsed = envSchema.safeParse(process.env);

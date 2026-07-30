@@ -1,8 +1,8 @@
 import { createSchemaField } from '@formily/react';
 
 import {
-  fieldComponentNames,
-  fieldDecoratorNames,
+  formFieldComponents,
+  formFieldDecorators,
 } from '../config/field-components';
 
 import { CheckboxField } from './fields/checkbox-field';
@@ -21,13 +21,13 @@ import { FormItem } from './form-item';
  */
 export const SchemaField = createSchemaField({
   components: {
-    [fieldDecoratorNames.formItem]: FormItem,
-    [fieldComponentNames.text]: TextField,
-    [fieldComponentNames.textarea]: TextareaField,
-    [fieldComponentNames.number]: NumberField,
-    [fieldComponentNames.select]: SelectField,
-    [fieldComponentNames.checkbox]: CheckboxField,
-    [fieldComponentNames.radioGroup]: RadioGroupField,
-    [fieldComponentNames.date]: DateField,
+    [formFieldDecorators.formItem]: FormItem,
+    [formFieldComponents.text]: TextField,
+    [formFieldComponents.textarea]: TextareaField,
+    [formFieldComponents.number]: NumberField,
+    [formFieldComponents.select]: SelectField,
+    [formFieldComponents.checkbox]: CheckboxField,
+    [formFieldComponents.radioGroup]: RadioGroupField,
+    [formFieldComponents.date]: DateField,
   },
 });

@@ -1,20 +1,21 @@
 # AI Form Creator — Guía para Claude Code
 
-Monorepo con dos apps y un paquete compartido:
+Monorepo con tres apps y un paquete compartido:
 
 | Paquete              | Stack                            | Arquitectura                    |
 | -------------------- | -------------------------------- | ------------------------------- |
 | `apps/front`         | React 19 + Vite 8 + TS (Formily) | bulletproof-react               |
 | `apps/back`          | NestJS 11 + Prisma 6 + Postgres  | hexagonal (puertos/adaptadores) |
+| `apps/worker`        | Temporal + TS (LiteLLM, RAGFlow) | workflows/actividades + dominio |
 | `packages/contracts` | TypeBox + TS                     | contratos que cruzan el cable   |
 
-**Los tres están forzados por ESLint**: si rompes una regla arquitectónica, el
+**Los cuatro están forzados por ESLint**: si rompes una regla arquitectónica, el
 lint falla y el commit se bloquea (husky + lint-staged).
 
 > **Este documento describe `apps/front`.** Las secciones 2 y 3 (nombrado,
-> magic strings) aplican a los tres. Para el backend, la guía completa está
+> magic strings) aplican a los cuatro. Para el backend, la guía completa está
 > en [`apps/back/README.md`](./apps/back/README.md); el resumen está en la
-> sección 9. El paquete compartido está en la sección 10.
+> sección 9. El paquete compartido está en la sección 10 y el worker en la 11.
 
 > Nota: la carpeta `ragflow/` es un checkout independiente (stack RAGFlow local),
 > no forma parte de estas apps. Está ignorada por git, ESLint, Prettier y Vitest.
@@ -33,11 +34,11 @@ Los comandos de abajo son de `apps/front` (correr desde ahí).
 | `npm run generate`    | Plop: genera feature o componente                |
 | `npm run build`       | Typecheck + build de producción                  |
 
-Hooks de git (cubren los tres paquetes, `packages/contracts` primero):
+Hooks de git (cubren los cuatro paquetes, `packages/contracts` primero):
 
 - `pre-commit` → lint-staged en cada uno (eslint --fix + prettier sobre lo
   staged).
-- `pre-push` → `check-types` + `test` de las dos apps, precedido por
+- `pre-push` → `check-types` + `test` de las tres apps, precedido por
   `check-types` + `build` del paquete de contratos. Ese build no es
   decorativo: las apps tipan contra el `dist/` del paquete, así que sin
   recompilar primero mirarían tipos viejos y darían verde en falso.
@@ -354,6 +355,23 @@ Cada contrato exporta las dos caras del mismo objeto: el **schema**
   anotación el bundler ve una llamada a función, la asume con efectos y se
   trae TypeBox entero al bundle del front aunque sólo se haya importado el
   objeto de estados.
+
+  **Y la anotación sola no siempre alcanza.** `/* @__PURE__ */ f(x)` dice que
+  `f` no tiene efectos, no que `x` no los tenga. Con `Type.Enum(objeto, {…})`
+  basta, porque los argumentos son datos; pero un
+  `Type.Object({ a: Type.String() })` tiene llamadas **adentro**, y el bundler
+  descarta la de afuera y conserva las de adentro — con el import de TypeBox
+  puesto. Por eso todo schema con llamadas anidadas se envuelve en una IIFE
+  anotada, que convierte esos argumentos en cuerpo de función:
+
+  ```ts
+  export const algoSchema = /* @__PURE__ */ (() =>
+    Type.Object({ nombre: Type.String({ minLength: 1 }) }))();
+  ```
+
+  Cómo verificarlo: `npm run build` en `apps/front` y
+  `grep -l TypeBox dist/assets/*.js`. Tiene que no encontrar nada. Es la única
+  forma de darse cuenta — el build no avisa, sólo pesa más.
 - **Un `format` hay que registrarlo en `formats.ts`.** TypeBox no trae ninguno
   de fábrica y un formato desconocido no se ignora: `Value.Check` devuelve
   `false` con `Unknown format 'uuid'`. Los schemas importan `formats.uuid` en
@@ -380,9 +398,113 @@ dependencia `file:` queda fuera de un contexto más angosto. Y el
 su ruta real y los imports que salen de `packages/contracts/dist/**` se buscan
 desde ahí, no desde el `node_modules` de la app.
 
+### Validar en runtime: `@ai-form-creator/contracts/validation`
+
+Si una app necesita `Value.Check`, **importa el `Value` de ese subpath**, no de
+`@sinclair/typebox/value`. `FormatRegistry` es un singleton por copia del
+módulo, y en este monorepo hay más de una (el paquete declara TypeBox como
+dependencia propia; las apps que lo enlazan por `file:` terminan con otra
+hoisteada). Con la copia equivocada, `Value.Check` devuelve `false` con
+`Unknown format 'uuid'` sobre documentos perfectamente válidos, sin tirar
+ningún error. Ese subpath exporta el `Value` de la misma copia que corrió
+`FormatRegistry.Set`.
+
 ### Agregar un contrato
 
 1. Creá `src/<contexto>/<entidad>.ts` con el schema y su `Static<>`.
 2. `npm run lint && npm run check-types && npm run build`.
 3. Reexportalo desde la puerta de cada app que lo use. El wildcard de `exports`
    ya cubre el subpath: no hay que tocar el `package.json`.
+
+### Contratos que no son HTTP
+
+`form-generation/` declara también lo que cruza los **otros dos cables** del
+sistema, y por el mismo motivo: son fronteras entre procesos que se rompen
+calladas.
+
+- `form-generation-workflow.ts` — la cola de Temporal, el nombre del workflow,
+  las señales y el argumento de arranque. Si el back encola en
+  `'form-generation'` y el worker escucha `'form-generations'`, nadie falla,
+  nadie loguea nada, y el workflow se queda encolado para siempre.
+- `form-generation-event.ts` — el namespace, el path y los nombres de evento del
+  WebSocket, más el canal de `LISTEN`/`NOTIFY` de Postgres. Un nombre de evento
+  que no coincida entre el `emit` y el `on` deja al front esperando.
+
+## 11. Worker de Temporal (`apps/worker`)
+
+El único proceso que le habla al modelo y el único que mueve el estado de una
+generación. No escucha en ningún puerto: toma trabajo de la cola
+`form-generation` y escribe en `app-postgres`. La guía completa está en
+[`apps/worker/README.md`](./apps/worker/README.md).
+
+```
+src/
+├── config/       # env + ajustes de adaptadores. Sólo lo leen worker.ts y activities/
+├── domain/       # puro: prompt, validación, compilador a Formily. CERO IO
+│   └── ports/    # lo que el workflow necesita del mundo, declarado como tipo
+├── activities/   # el único lugar con red y base de datos
+├── workflows/    # determinista; sólo orquesta
+└── worker.ts     # raíz de composición
+```
+
+| Desde ↓ / Hacia →| `domain` | `activities` | `config` | `pg`, `node:*`, `@temporalio/worker` |
+| ---------------- | :------: | :----------: | :------: | :---------------------------------: |
+| `domain`         |    ✅    |      ❌      |    ❌    |                 ❌                  |
+| `workflows`      |    ✅    |      ❌      |    ❌    |                 ❌                  |
+| `activities`     |    ✅    |      ✅      |    ✅    |                 ✅                  |
+
+**Estas reglas no son estéticas: se las impone Temporal.** El código de un
+workflow corre en un sandbox determinista y se reejecuta de cero cada vez que el
+worker se reinicia. No hay red, ni disco, ni `process.env`, y cualquier cosa que
+dé un resultado distinto en la segunda corrida rompe la ejecución — no al
+compilar, sino en producción, en una reejecución, con un `Nondeterminism error`.
+
+Al añadir código, respeta esto:
+
+- **El workflow no importa actividades.** Habla con ellas por el puerto de
+  `domain/ports/` que resuelve `proxyActivities`. Es la misma inversión de
+  dependencias que el back.
+- **Lo que se reejecuta no puede cambiar de opinión.** Si una función pura
+  decide un camino del workflow y su resultado podría cambiar con un despliegue,
+  va envuelta en una actividad: el resultado de una actividad queda grabado en
+  el historial y se relee, no se recalcula. Es el caso de
+  `validateFormDraft` — el workflow espera hasta 30 días por una revisión
+  humana, y en 30 días se despliega código nuevo.
+- **El reintento por schema inválido vive en el workflow, no en la política de
+  reintentos de Temporal.** Esta última reejecuta la misma actividad con los
+  mismos argumentos; el bucle de reparación necesita reescribir el prompt con
+  los errores adentro.
+- **El worker no lee la base.** Todo lo que necesita se lo pasa el back en el
+  argumento del workflow. Sus únicas sentencias son escrituras de estado, y
+  viven todas en `activities/form-generation-store.ts`.
+- **El esquema de la base no es de acá.** Lo gobierna
+  `apps/back/prisma/schema.prisma` y las migraciones las corre el back.
+
+⚠️ **La imagen del worker no es Alpine.** El SDK de Temporal trae su núcleo en
+Rust como binario nativo y sólo publica prebuilds para glibc. Sobre musl la
+imagen construye entera y revienta al arrancar. Usa `node:24-bookworm-slim`.
+
+### El camino completo de una generación
+
+```
+front (prompt + documentos)
+  └► POST /api/form-generations
+       └► back: valida documentos, escribe fila en PENDING, encola el workflow
+            └► worker: RETRIEVING → GENERATING → VALIDATING → (REPAIRING ×3)
+                        └► AWAITING_REVIEW   ← se detiene, siempre
+                             └► señal `review` (la manda el back)
+                                  └► APPROVED / REJECTED
+
+cada cambio de estado ─► UPDATE ─► trigger ─► pg_notify ─► back (LISTEN)
+                                                       └─► WebSocket ─► front
+```
+
+**La IA nunca publica sola.** Toda generación se detiene en `AWAITING_REVIEW`
+hasta que una persona decide, y la única transición hacia `APPROVED` sale de
+ahí. Lo sostienen tres cosas: el `condition` del workflow, el 409 del caso de
+uso `ReviewFormGeneration`, y que el puerto del repositorio del back **no tenga
+un `update`** — el back no escribe estados, sólo el worker.
+
+El `pg_notify` lleva sólo el id y el estado, no la fila: el payload tiene un
+tope duro de 8 KB y el schema de Formily lo pasa con cualquier formulario
+mediano. El back relee por id y publica la entidad ya mapeada.

@@ -73,11 +73,11 @@ y borrar `components/apps/`.
 
 ## Imágenes: construir e importar
 
-No hay registry. Las imágenes de `front` y `back` se construyen local y se
-**importan a mano al containerd de k3s**, que es un almacén distinto del de
+No hay registry. Las imágenes de `front`, `back` y `worker` se construyen local
+y se **importan a mano al containerd de k3s**, que es un almacén distinto del de
 Docker: que `docker images` la liste no significa que el kubelet la vea.
 
-Por eso los dos Deployments usan `imagePullPolicy: IfNotPresent` y el bloque
+Por eso los tres Deployments usan `imagePullPolicy: IfNotPresent` y el bloque
 `images` del kustomization **no les reescribe el nombre** — el del manifiesto
 tiene que ser idéntico al del import. Sin eso, el kubelet las busca en
 docker.io y el pod queda en `ErrImagePull`.
@@ -87,6 +87,15 @@ docker.io y el pod queda en `ErrImagePull`.
 # Contexto = raíz del repo (no apps/back): el back depende de
 # packages/contracts por `file:`, que queda fuera de un contexto más angosto.
 docker build -t ai-form-creator/back:dev -f apps/back/Dockerfile .
+
+# --- worker ---
+# Mismo contexto que el back, por el mismo motivo (packages/contracts).
+#
+# OJO: su Dockerfile usa node:24-bookworm-slim y NO alpine. El SDK de Temporal
+# trae su núcleo en Rust como binario nativo y sólo publica prebuilds para
+# glibc; sobre musl la imagen construye entera y revienta al arrancar, con un
+# error de módulo nativo que no menciona a musl por ningún lado.
+docker build -t ai-form-creator/worker:dev -f apps/worker/Dockerfile .
 
 # --- front ---
 # Vite hornea las VITE_APP_* dentro del bundle: son build-time, no runtime.
@@ -105,8 +114,9 @@ docker build -t ai-form-creator/front:dev -f apps/front/Dockerfile . \
   --build-arg VITE_APP_URL=http://app.192.168.18.23.nip.io
 
 # --- importar al containerd de k3s (necesita root: el socket es de root) ---
-docker save ai-form-creator/back:dev  | sudo k3s ctr images import -
-docker save ai-form-creator/front:dev | sudo k3s ctr images import -
+docker save ai-form-creator/back:dev   | sudo k3s ctr images import -
+docker save ai-form-creator/worker:dev | sudo k3s ctr images import -
+docker save ai-form-creator/front:dev  | sudo k3s ctr images import -
 
 # --- verificar que el kubelet las ve ---
 sudo k3s ctr images ls -q | grep ai-form-creator

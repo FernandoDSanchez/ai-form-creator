@@ -31,6 +31,18 @@ export const paths = {
     },
   },
 
+  formGenerations: {
+    root: {
+      path: '/form-generations',
+      getHref: () => '/form-generations',
+    },
+    detail: {
+      path: '/form-generations/:formGenerationId',
+      getHref: (formGenerationId: string) =>
+        `/form-generations/${formGenerationId}`,
+    },
+  },
+
   notFound: {
     path: '*',
     getHref: () => '/404',

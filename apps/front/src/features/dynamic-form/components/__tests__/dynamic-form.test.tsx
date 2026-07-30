@@ -2,8 +2,8 @@ import type { ISchema } from '@formily/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
-  fieldComponentNames,
-  fieldDecoratorNames,
+  formFieldComponents,
+  formFieldDecorators,
 } from '@/features/dynamic-form/config/field-components';
 import { renderApp, screen, waitFor } from '@/testing/test-utils';
 
@@ -16,8 +16,8 @@ const schema: ISchema = {
       type: 'string',
       title: 'Nombre completo',
       required: true,
-      'x-decorator': fieldDecoratorNames.formItem,
-      'x-component': fieldComponentNames.text,
+      'x-decorator': formFieldDecorators.formItem,
+      'x-component': formFieldComponents.text,
     },
   },
 };

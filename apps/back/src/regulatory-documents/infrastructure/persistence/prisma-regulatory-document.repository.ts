@@ -28,4 +28,12 @@ export class PrismaRegulatoryDocumentRepository implements RegulatoryDocumentRep
 
     return toRegulatoryDocument(row);
   }
+
+  async findAll(): Promise<RegulatoryDocument[]> {
+    const rows = await this.prisma.regulatoryDocument.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows.map(toRegulatoryDocument);
+  }
 }

@@ -1,6 +1,7 @@
 import {
   Controller,
   FileTypeValidator,
+  Get,
   HttpCode,
   HttpStatus,
   MaxFileSizeValidator,
@@ -17,6 +18,7 @@ import {
   ApiBadRequestResponse,
   ApiBody,
   ApiConsumes,
+  ApiOkResponse,
   ApiOperation,
   ApiPayloadTooLargeResponse,
   ApiTags,
@@ -24,6 +26,7 @@ import {
 import { memoryStorage } from 'multer';
 
 import { uploadConfig } from '../../../config/app-config';
+import { ListRegulatoryDocumentsUseCase } from '../../application/list-regulatory-documents.use-case';
 import { RegisterRegulatoryDocumentUseCase } from '../../application/register-regulatory-document.use-case';
 
 import { DomainExceptionFilter } from './domain-exception.filter';
@@ -41,7 +44,24 @@ import { UploadRegulatoryDocumentDto } from './dto/upload-regulatory-document.dt
 export class RegulatoryDocumentsController {
   constructor(
     private readonly registerRegulatoryDocument: RegisterRegulatoryDocumentUseCase,
+    private readonly listRegulatoryDocuments: ListRegulatoryDocumentsUseCase,
   ) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'Lista los documentos regulatorios',
+    description:
+      'Del más reciente al más viejo. Lo consume el selector de documentos ' +
+      'de la pantalla de generación.',
+  })
+  @ApiOkResponse({ type: [RegulatoryDocumentResponse] })
+  async list(): Promise<RegulatoryDocumentResponse[]> {
+    const documents = await this.listRegulatoryDocuments.execute();
+
+    return documents.map((document) =>
+      RegulatoryDocumentResponse.from(document),
+    );
+  }
 
   @Post()
   @HttpCode(HttpStatus.ACCEPTED)

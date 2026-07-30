@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  # Dos réplicas por disponibilidad, no por rendimiento: Temporal reparte las
+  # tareas de la cola entre los workers que estén escuchando, así que un pod
+  # que se cae no detiene ningún workflow — otro toma la tarea donde quedó.
+  # Escalar de verdad es subir esto, sin coordinación de ningún tipo.
+  replicas: 2
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          # Worker de Temporal: workflows y actividades de la generación de
+          # formularios. Se conecta a Temporal, a LiteLLM, a RAGFlow y a
+          # app-postgres. No corre migraciones: el esquema lo gobierna el back.
+          image: ai-form-creator/worker
+          # La imagen se importa a mano al containerd de k3s; no hay registry
+          # del que bajarla. Ver el bloque `images` del kustomization.
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: worker-config
+            - secretRef:
+                name: worker-secret
+          resources:
+            requests:
+              memory: "192Mi"
+              cpu: "100m"
+            limits:
+              # Más holgado que el back: el SDK de Temporal levanta el bundle
+              # del workflow en un contexto de V8 aparte, y encima el núcleo en
+              # Rust tiene su propio pool de hilos.
+              memory: "768Mi"
+              cpu: "1"
+          # Sin probes HTTP: el worker no escucha en ningún puerto. Su "estar
+          # vivo" es estar tomando tareas de la cola, y eso se mira desde la UI
+          # de Temporal (Workers de la task queue `form-generation`), no desde
+          # el kubelet. Una probe TCP contra un puerto que no existe sería peor
+          # que ninguna: reiniciaría pods sanos.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+            runAsNonRoot: true
+            runAsUser: 1000
+            seccompProfile: { type: RuntimeDefault }
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      # El apagado ordenado del worker deja de tomar tareas nuevas y espera a
+      # que terminen las que están en curso. La actividad más larga es la
+      # llamada al modelo (120 s de timeout), así que el default de 30 s la
+      # cortaría por la mitad y Temporal tendría que reintentarla entera.
+      terminationGracePeriodSeconds: 150
+      volumes:
+        - name: tmp
+          emptyDir: {}

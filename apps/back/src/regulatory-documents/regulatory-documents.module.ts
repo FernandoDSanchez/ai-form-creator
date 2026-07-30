@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { httpConfig } from '../config/app-config';
 import { env } from '../config/env';
 
+import { ListRegulatoryDocumentsUseCase } from './application/list-regulatory-documents.use-case';
 import { RegisterRegulatoryDocumentUseCase } from './application/register-regulatory-document.use-case';
 import {
   DOCUMENT_INGESTION,
@@ -67,6 +68,12 @@ import { RagflowDocumentIngestionAdapter } from './infrastructure/ragflow/ragflo
         DOCUMENT_INGESTION,
         DOCUMENT_PROCESSING_LAUNCHER,
       ],
+    },
+    {
+      provide: ListRegulatoryDocumentsUseCase,
+      useFactory: (documents: RegulatoryDocumentRepository) =>
+        new ListRegulatoryDocumentsUseCase(documents),
+      inject: [REGULATORY_DOCUMENT_REPOSITORY],
     },
   ],
 })

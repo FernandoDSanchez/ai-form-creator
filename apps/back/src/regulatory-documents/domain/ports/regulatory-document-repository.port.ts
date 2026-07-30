@@ -9,6 +9,7 @@ import type {
  */
 export type RegulatoryDocumentRepository = {
   create(document: NewRegulatoryDocument): Promise<RegulatoryDocument>;
+  findAll(): Promise<RegulatoryDocument[]>;
 };
 
 /**

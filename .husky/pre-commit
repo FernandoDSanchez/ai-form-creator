@@ -1,3 +1,4 @@
 (cd packages/contracts && npx lint-staged)
 (cd apps/front && npx lint-staged)
 (cd apps/back && npx lint-staged)
+(cd apps/worker && npx lint-staged)

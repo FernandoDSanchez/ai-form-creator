@@ -28,6 +28,62 @@ enum RegulatoryDocumentStatus {
   FAILED
 }
 
+/// Estado del pipeline de generación. Lo escribe el back al aceptar el pedido
+/// (PENDING) y a partir de ahí lo mueve el worker de Temporal. Cada cambio
+/// dispara un `pg_notify` (ver la migración `..._form_generation`), que es como
+/// el back se entera sin hacer polling.
+///
+/// Los literales son los mismos de `formGenerationStatuses` en
+/// `packages/contracts`. No hay chequeo automático de que coincidan: el que los
+/// ata es el mapper de persistencia, donde TypeScript compara el enum de Prisma
+/// contra el tipo del contrato.
+enum FormGenerationStatus {
+  PENDING
+  RETRIEVING
+  GENERATING
+  VALIDATING
+  REPAIRING
+  AWAITING_REVIEW
+  APPROVED
+  REJECTED
+  FAILED
+}
+
+model FormGeneration {
+  id String @id @default(uuid()) @db.Uuid
+
+  /// El pedido en lenguaje natural, tal cual lo escribió la persona.
+  prompt String
+
+  /// Documentos elegidos, por su id nuestro.
+  ///
+  /// Arreglo de UUIDs y no una tabla de unión a propósito: esto es la foto del
+  /// pedido, no una relación viva. Si mañana se borra un documento, lo que se
+  /// generó tiene que poder seguir explicándose con lo que había ese día — y
+  /// una FK con ON DELETE CASCADE se llevaría justamente esa evidencia.
+  regulatoryDocumentIds String[] @map("regulatory_document_ids") @db.Uuid
+
+  status   FormGenerationStatus @default(PENDING)
+  /// Cuántas veces se le pidió el formulario al modelo, reintentos incluidos.
+  attempts Int                  @default(0)
+
+  /// Salida del modelo ya validada contra `generatedFormSchema`.
+  draft Json?
+
+  /// El borrador compilado a JSON de Formily. Es lo que renderiza el front.
+  formilySchema Json? @map("formily_schema")
+
+  failureReason String?   @map("failure_reason")
+  reviewerNote  String?   @map("reviewer_note")
+  reviewedAt    DateTime? @map("reviewed_at") @db.Timestamptz(6)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, createdAt])
+  @@map("form_generations")
+}
+
 model RegulatoryDocument {
   id String @id @default(uuid()) @db.Uuid
 

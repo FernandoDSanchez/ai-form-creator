@@ -36,6 +36,9 @@ resources:
   - front-service.yaml
   - back-deployment.yaml
   - back-service.yaml
+  # Sin Service: el worker no escucha nada. Habla con Temporal por gRPC
+  # saliente y toma trabajo de la cola.
+  - worker-deployment.yaml
   - ingress.yaml
 
   # --- LiteLLM + su Postgres (remoto) ---
@@ -79,6 +82,41 @@ configMapGenerator:
       #
       # Dataset `Aduana`.
       - RAGFLOW_DATASET_ID=910c513689ef11f185a34559384ef010
+      - TEMPORAL_NAMESPACE=default
+    options:
+      disableNameSuffixHash: true
+  - name: worker-config
+    literals:
+      - NODE_ENV=production
+      - TEMPORAL_ADDRESS=temporal-server:7233
+      - TEMPORAL_NAMESPACE=default
+      - LITELLM_BASE_URL=http://litellm:4000
+      # Modelo con el prefijo de proveedor que espera LiteLLM. Va acá y no en
+      # el código: cambiar de modelo no debería ser un despliegue de imagen.
+      # Tiene que estar dado de alta en `configs/litellm-config.yaml`.
+      #
+      # OJO con los modelos retirados. Acá arrancamos con
+      # `gemini/gemini-2.5-flash` y Google lo devolvió con un 404: «no longer
+      # available to new users». Sigue **apareciendo** en `listModels`, así que
+      # la lista no alcanza para verificarlo — hay que hacerle una llamada real.
+      # Si esto falla con 404, probá candidatos con:
+      #
+      #   kubectl -n ai-form-creator exec deploy/worker -- node -e "fetch(
+      #     process.env.LITELLM_BASE_URL+'/v1/chat/completions',{method:'POST',
+      #     headers:{'Content-Type':'application/json',Authorization:'Bearer '+
+      #     process.env.LITELLM_API_KEY},body:JSON.stringify({model:'gemini/<X>',
+      #     messages:[{role:'user',content:'hola'}]})}).then(r=>r.text()).then(console.log)"
+      #
+      # Por eso usamos el alias `gemini-flash-latest`, que no caduca: el precio
+      # es que el modelo de abajo cambie sin aviso, y lo pagamos contentos
+      # porque un 404 deja la generación muerta y acá cada resultado lo revisa
+      # una persona antes de publicarse.
+      - LITELLM_MODEL=gemini/gemini-flash-latest
+      - RAGFLOW_API_URL=http://ragflow:9380
+      # El mismo dataset que el back: es donde aterrizan los documentos. El
+      # worker igual usa el dataset que trae cada documento en el argumento del
+      # workflow; esto es el respaldo.
+      - RAGFLOW_DATASET_ID=910c513689ef11f185a34559384ef010
     options:
       disableNameSuffixHash: true
   - name: litellm-config-file
@@ -102,6 +140,11 @@ secretGenerator:
   - name: back-secret
     envs:
       - secrets/back.env
+    options:
+      disableNameSuffixHash: true
+  - name: worker-secret
+    envs:
+      - secrets/worker.env
     options:
       disableNameSuffixHash: true
   - name: litellm-secret
@@ -186,4 +229,11 @@ images:
     newTag: dev
 
   - name: ai-form-creator/back
+    newTag: dev
+
+  # OJO: el worker NO se construye sobre Alpine como las otras dos. El SDK de
+  # Temporal trae su núcleo en Rust como binario nativo y sólo publica
+  # prebuilds para glibc; sobre musl la imagen construye bien y revienta al
+  # arrancar. El detalle está en `apps/worker/Dockerfile`.
+  - name: ai-form-creator/worker
     newTag: dev

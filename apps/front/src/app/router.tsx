@@ -45,6 +45,20 @@ export const createAppRouter = (queryClient: QueryClient) =>
         import('./routes/regulatory-documents').then(convert(queryClient)),
     },
     {
+      path: paths.formGenerations.root.path,
+      lazy: () =>
+        import('./routes/form-generations/form-generations').then(
+          convert(queryClient),
+        ),
+    },
+    {
+      path: paths.formGenerations.detail.path,
+      lazy: () =>
+        import('./routes/form-generations/form-generation').then(
+          convert(queryClient),
+        ),
+    },
+    {
       path: paths.notFound.path,
       lazy: () => import('./routes/not-found').then(convert(queryClient)),
     },

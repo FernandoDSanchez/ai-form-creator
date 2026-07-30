@@ -50,6 +50,8 @@ const aRepository = (): RegulatoryDocumentRepository => ({
           updatedAt: EPOCH,
         }),
     ),
+  // El alta no lista nada; está para satisfacer el puerto.
+  findAll: jest.fn().mockResolvedValue([]),
 });
 
 const aLauncher = (): DocumentProcessingLauncher => ({
